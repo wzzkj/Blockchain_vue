@@ -1,7 +1,7 @@
 <template>
     <div class="sys-config-container">
         <el-alert title="系统配置谨慎修改" type="primary"
-      description="More text description"
+      description="非常重要的配置项，禁止删除 sys_config 配置，更改任何配置前请思考" closable
       show-icon />
         <!-- 操作栏 -->
         <div class="toolbar">

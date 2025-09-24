@@ -7,10 +7,6 @@
 
         <!-- 表格主体 -->
         <el-table :data="tableData" border stripe style="width: 100%" v-loading="loading">
-            <!-- 
-                v-for 遍历的是我们在 data 中预定义的 tableColumns 数组。
-                这样可以保证即使没有数据，表头也能正确显示。
-            -->
             <el-table-column
                 v-for="column in tableColumns"
                 :key="column.prop"
@@ -31,7 +27,7 @@
 
         <!-- 新增/编辑 对话框 -->
         <el-dialog :title="dialogTitle" v-model="dialogVisible" width="600px" top="5vh">
-            <el-form ref="staticProductForm" :model="formModel" :rules="formRules" label-width="120px">
+            <el-form ref="staticProductForm" :model="formModel" :rules="formRules" label-width="140px">
                 <el-form-item 
                     v-for="field in formFields" 
                     :key="field.prop" 
@@ -66,8 +62,13 @@
 </template>
 
 <script>
-// 引入所需的 API 和 Element Plus 组件
-import { getRows, createRow, updateRow, deleteRow } from '../../api/dynamicTable';
+// ========================= 代码重构点 1: 引入新的专用API接口 =========================
+import {
+    addStaticProduct,
+    deleteStaticProduct,
+    updateStaticProduct,
+    listAllStaticProductsAdmin
+} from '../../api/staticProductAPI'; // 假设你的API文件名为 staticProductAPI.js
 import { ElMessage, ElMessageBox } from 'element-plus';
 import md5 from 'js-md5';
 
@@ -80,20 +81,21 @@ export default {
     return {
       loading: false,
       tableData: [],
-      // 关键修改点 1: 更改表名
-      tableName: 'b_static_financial_product',
+      // tableName 不再需要
 
-      // 预先定义好表格的列结构，与后端实体类 StaticFinancialProduct 对应
+      // ================== 代码重构点 2: 根据 StaticFinancialProduct 实体类更新列定义 =================
       tableColumns: [
           { prop: 'id', label: 'ID' },
           { prop: 'name', label: '产品名称' },
           { prop: 'type', label: '类型' },
           { prop: 'price', label: '单价/起投金额' },
-          { prop: 'cycleDays', label: '周期(时)' },
+          { prop: 'cycleDays', label: '周期(天)' }, // Pojo 中是天
           { prop: 'yieldRate', label: '收益率' },
-          { prop: 'purchaseLimit', label: '限购数量' },
-          { prop: 'uid', label: '用户UID' },
-          { prop: 'uuid', label: 'UUID' },
+          { prop: 'purchaseLimit', label: '限购数量(为0表示无限制)' },
+          // 新增字段
+        //   { prop: 'limitNumberPurchases', label: '限制购买次数' },
+        //   { prop: 'uid', label: '用户UID' },
+        //   { prop: 'uuid', label: 'UUID' },
           { prop: 'creatTime', label: '创建时间' },
           { prop: 'updateTime', label: '更新时间' }
       ],
@@ -101,7 +103,7 @@ export default {
       dialogVisible: false,
       dialogTitle: '',
       formModel: {},
-      formRules: { // 定义表单校验规则
+      formRules: {
           name: [{ required: true, message: '产品名称不能为空', trigger: 'blur' }],
           price: [{ required: true, message: '单价/起投金额不能为空', trigger: 'blur' }],
           cycleDays: [{ required: true, message: '周期天数不能为空', trigger: 'blur' }],
@@ -110,35 +112,41 @@ export default {
     }
   },
   computed: {
-    // 根据预定义的 tableColumns 自动计算出表单需要显示的字段
     formFields() {
+      // 这个计算属性逻辑很棒，无需修改，会自动把新增的字段包含进来
       return this.tableColumns.filter(col => !EXCLUDED_FORM_FIELDS.includes(col.prop));
     }
   },
   methods: {
-    // --- 查 (Read) ---
+    // =================== 代码重构点 3: 使用 listAllStaticProductsAdmin 加载数据 ===================
     async loadTables() {
         this.loading = true;
         try {
-            const list = await getRows(this.tableName);
-            this.tableData = Array.isArray(list) ? list : [];
+            // 注意：管理员后台通常调用 admin 接口
+            const response = await listAllStaticProductsAdmin();
+            if (response && response.data) {
+                this.tableData = Array.isArray(response.data) ? response.data : [];
+            } else {
+                this.tableData = [];
+                ElMessage.error(response.msg || '数据加载失败');
+            }
         } catch (e) {
             this.tableData = [];
-            ElMessage.error(e.message || '数据加载失败');
+            ElMessage.error(e.message || '数据加载异常');
         } finally {
             this.loading = false;
         }
     },
 
-    // --- 增 (Create) ---
+    // =================== 代码重构点 4: 在 handleCreate 中初始化新增的字段 ===================
     handleCreate() {
         const seed = Date.now().toString() + Math.random().toString();
         this.formModel = {
             uuid: md5('uuid-' + seed),
-            keyField: md5('key-' + seed),
-            purchaseLimit: '0' // 默认不限购
+            keyField: md5('key-'+ seed),
+            purchaseLimit: '0', // 默认不限购
+            limitNumberPurchases: 0 // 新增字段，默认值为0 (无限制)
         };
-        // 关键修改点 2: 更改对话框标题
         this.dialogTitle = '新增静态理财产品';
         this.dialogVisible = true;
         this.$nextTick(() => {
@@ -146,10 +154,9 @@ export default {
         });
     },
 
-    // --- 改 (Update) ---
+    // handleEdit 逻辑不变，因为 { ...row } 会自动带上所有字段
     handleEdit(row) {
-        this.formModel = { ...row };
-        // 关键修改点 3: 更改对话框标题
+        this.formModel = { ...row }; 
         this.dialogTitle = '编辑静态理财产品';
         this.dialogVisible = true;
         this.$nextTick(() => {
@@ -157,43 +164,53 @@ export default {
         });
     },
 
-    // --- 删 (Delete) ---
+    // ====================== 代码重构点 5: 使用 deleteStaticProduct 删除数据 ======================
     async handleDelete(row) {
         try {
-            // 关键修改点 4: 更改确认信息
             await ElMessageBox.confirm(
                 `确定要删除静态理财产品 "${row.name}" (ID: ${row.id}) 吗？`,
                 '警告', { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
             );
-            await deleteRow(this.tableName, row.id);
-            ElMessage.success('删除成功！');
-            this.loadTables();
+            const result = await deleteStaticProduct(row.id);
+            if (result && result.code!==400) {
+                ElMessage.success('删除成功！');
+                this.loadTables();
+            } else {
+                ElMessage.error(result.msg || '删除失败');
+            }
         } catch (error) {
             if (error !== 'cancel') {
-              ElMessage.error(error.message || '删除失败');
+              ElMessage.info('操作已取消或发生错误');
             }
         }
     },
 
-    // --- 表单操作 (无需修改) ---
     cancelForm() {
         this.dialogVisible = false;
     },
 
+    // =================== 代码重构点 6: 使用 add/updateStaticProduct 提交表单 ===================
     submitForm() {
         this.$refs.staticProductForm.validate(async (valid) => {
             if (valid) {
                 const payload = { ...this.formModel };
                 try {
-                    if (payload.id) {
-                        await updateRow(this.tableName, payload.id, payload);
-                        ElMessage.success('更新成功！');
-                    } else {
-                        await createRow(this.tableName, payload);
-                        ElMessage.success('新增成功！');
+                    let result;
+                    const actionText = payload.id ? '更新' : '新增';
+
+                    if (payload.id) { // 更新
+                        result = await updateStaticProduct(payload);
+                    } else { // 新增
+                        result = await addStaticProduct(payload);
                     }
-                    this.dialogVisible = false;
-                    this.loadTables();
+                    
+                    if (result && result.code!==400) {
+                        ElMessage.success(`${actionText}成功！`);
+                        this.dialogVisible = false;
+                        this.loadTables();
+                    } else {
+                        ElMessage.error(result.msg || `${actionText}失败`);
+                    }
                 } catch (e) {
                      ElMessage.error(e.message || '操作失败');
                 }

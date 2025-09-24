@@ -67,7 +67,13 @@
 </template>
 
 <script>
-import { getRows, createRow, updateRow, deleteRow } from '../../api/dynamicTable';
+// ========================= 代码重构点 1: 引入新的专用API接口 =========================
+import {
+    addProduct,
+    deleteProduct,
+    updateProduct,
+    listAllProductsAdmin
+} from '../../api/dynamicProductAPI'; // 假设你的API文件名为 dynamicProductAPI.js
 import { ElMessage, ElMessageBox } from 'element-plus';
 import md5 from 'js-md5';
 
@@ -80,9 +86,8 @@ export default {
     return {
       loading: false,
       tableData: [],
-      tableName: 'b_dynamic_financial_product',
+      // tableName 不再需要，API已经是专用的了
 
-      // 预先定义好表格的列结构，与后端实体类对应
       tableColumns: [
           { prop: 'id', label: 'ID' },
           { prop: 'name', label: '产品名称' },
@@ -90,9 +95,9 @@ export default {
           { prop: 'price', label: '单价/起投金额' },
           { prop: 'cycleDays', label: '周期(天)' },
           { prop: 'yieldRate', label: '收益率' },
-          { prop: 'purchaseLimit', label: '限购数量' },
-          { prop: 'uid', label: '用户UID' },
-          { prop: 'uuid', label: 'UUID' },
+          { prop: 'purchaseLimit', label: '限购数量(为0表示无限制)' },
+        //   { prop: 'uid', label: '用户UID' },
+        //   { prop: 'uuid', label: 'UUID' },
           { prop: 'creatTime', label: '创建时间' },
           { prop: 'updateTime', label: '更新时间' }
       ],
@@ -100,7 +105,7 @@ export default {
       dialogVisible: false,
       dialogTitle: '',
       formModel: {},
-      formRules: { // 定义表单校验规则
+      formRules: {
           name: [{ required: true, message: '产品名称不能为空', trigger: 'blur' }],
           price: [{ required: true, message: '单价/起投金额不能为空', trigger: 'blur' }],
           cycleDays: [{ required: true, message: '周期天数不能为空', trigger: 'blur' }],
@@ -109,18 +114,23 @@ export default {
     }
   },
   computed: {
-    // 根据预定义的 tableColumns 自动计算出表单需要显示的字段
     formFields() {
       return this.tableColumns.filter(col => !EXCLUDED_FORM_FIELDS.includes(col.prop));
     }
   },
   methods: {
-    // --- 查 (Read) ---
+    // ========================= 代码重构点 2: 使用 listAllProductsAdmin 加载数据 =========================
     async loadTables() {
         this.loading = true;
         try {
-            const list = await getRows(this.tableName);
-            this.tableData = Array.isArray(list) ? list : [];
+            const response = await listAllProductsAdmin();
+            // 后端返回 Result2 对象，真实数据在 response.data 中
+            if (response && response.data) {
+                this.tableData = Array.isArray(response.data) ? response.data : [];
+            } else {
+                this.tableData = [];
+                ElMessage.error(response.msg || '数据格式不正确');
+            }
         } catch (e) {
             this.tableData = [];
             ElMessage.error(e.message || '数据加载失败');
@@ -129,14 +139,13 @@ export default {
         }
     },
 
-    // --- 增 (Create) ---
+    // handleCreate 逻辑不变
     handleCreate() {
         const seed = Date.now().toString() + Math.random().toString();
-        // 初始化表单，并自动生成 uuid 和 keyField
         this.formModel = {
             uuid: md5('uuid-' + seed),
             keyField: md5('key-' + seed),
-            purchaseLimit: '0' // 默认不限购
+            purchaseLimit: '0' 
         };
         this.dialogTitle = '新增理财产品';
         this.dialogVisible = true;
@@ -145,7 +154,7 @@ export default {
         });
     },
 
-    // --- 改 (Update) ---
+    // handleEdit 逻辑不变
     handleEdit(row) {
         this.formModel = { ...row }; 
         this.dialogTitle = '编辑理财产品';
@@ -155,42 +164,54 @@ export default {
         });
     },
 
-    // --- 删 (Delete) ---
+    // ========================= 代码重构点 3: 使用 deleteProduct 删除数据 =========================
     async handleDelete(row) {
         try {
             await ElMessageBox.confirm(
                 `确定要删除理财产品 "${row.name}" (ID: ${row.id}) 吗？`,
                 '警告', { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
             );
-            await deleteRow(this.tableName, row.id);
-            ElMessage.success('删除成功！');
-            this.loadTables();
+            const result = await deleteProduct(row.id);
+            // 根据后端返回的 Result2 对象判断是否成功
+            if (result && result.code!== 400) {
+                ElMessage.success('删除成功！');
+                this.loadTables();
+            } else {
+                ElMessage.error(result.msg || '删除失败');
+            }
         } catch (error) {
             if (error !== 'cancel') {
-              ElMessage.error(error.message || '删除失败');
+              ElMessage.info('操作已取消或发生错误');
             }
         }
     },
 
-    // --- 表单操作 ---
     cancelForm() {
         this.dialogVisible = false;
     },
 
+    // ========================= 代码重构点 4: 使用 addProduct/updateProduct 提交表单 =========================
     submitForm() {
         this.$refs.productForm.validate(async (valid) => {
             if (valid) {
                 const payload = { ...this.formModel };
                 try {
+                    let result;
+                    const actionText = payload.id ? '更新' : '新增';
+
                     if (payload.id) { // 有ID则为更新
-                        await updateRow(this.tableName, payload.id, payload);
-                        ElMessage.success('更新成功！');
+                        result = await updateProduct(payload);
                     } else { // 无ID则为新增
-                        await createRow(this.tableName, payload);
-                        ElMessage.success('新增成功！');
+                        result = await addProduct(payload);
                     }
-                    this.dialogVisible = false;
-                    this.loadTables();
+                    
+                    if (result && result.code!==400) {
+                        ElMessage.success(`${actionText}成功！`);
+                        this.dialogVisible = false;
+                        this.loadTables();
+                    } else {
+                        ElMessage.error(result.msg || `${actionText}失败`);
+                    }
                 } catch (e) {
                      ElMessage.error(e.message || '操作失败');
                 }

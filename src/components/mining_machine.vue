@@ -115,7 +115,7 @@ export default {
                 { prop: 'cycleType', label: '周期类型', formatter: this.cycleTypeFormatter },
                 { prop: 'price', label: '单价(USDT)' },
                 { prop: 'cycleDuration', label: '周期时长' },
-                { prop: 'yieldRate', label: '周期收益率' },
+                { prop: 'yieldRate', label: '周期收益率 0.05 代表 5%' },
                 { prop: 'purchaseLimit', label: '限购数量(0为不限)' },
                 { prop: 'description', label: '矿机描述' },
             ],

@@ -1,8 +1,14 @@
 <template>
     <div class="sys-config-container">
-        <el-alert title="系统配置谨慎修改" type="primary"
-      description="非常重要的配置项，禁止删除 sys_config 配置，更改任何配置前请思考" closable
-      show-icon />
+
+      <el-alert 
+            title="系统配置谨慎修改" 
+            type="primary"
+            description="非常重要的配置项，禁止删除 sys_config 配置，更改任何配置前请思考" 
+            show-icon 
+            :closable="false" 
+            style="margin-bottom: 20px;"
+        />
         <!-- 操作栏 -->
         <div class="toolbar">
             <el-button type="primary" @click="handleCreate">新增配置</el-button>
@@ -14,7 +20,6 @@
             <el-table-column prop="configName" label="配置名" min-width="200" />
             <el-table-column label="配置值详情" min-width="400">
                 <template #default="{ row }">
-                    <!-- 只有当 configValue 是一个有内容的 object 时才渲染描述列表 -->
                     <el-descriptions
                         v-if="row.configValue && Object.keys(row.configValue).length > 0"
                         class="config-descriptions"
@@ -22,16 +27,19 @@
                         size="small"
                         border
                     >
+                        <!-- 
+                            --- 关键修改点 ---
+                            将 :label="key" 修改为 :label="translateKey(key)"
+                            这样每个配置键都会经过我们的翻译方法处理
+                        -->
                         <el-descriptions-item
                             v-for="(value, key) in row.configValue"
                             :key="key"
-                            :label="key"
+                            :label="translateKey(key)"
                         >
-                            <!-- 使用 pre 标签来优雅地处理长文本和多行文本 -->
                             <pre class="description-value-pre">{{ formatValueForDisplay(value) }}</pre>
                         </el-descriptions-item>
                     </el-descriptions>
-                    <!-- 如果没有配置值，则显示横杠 -->
                     <span v-else>--</span>
                 </template>
             </el-table-column>
@@ -40,22 +48,12 @@
                 <template #default="{ row }">
                     <el-button link type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
                     
-                    <!-- 
-                        --- 关键修改点 ---
-                        使用 el-tooltip 包裹删除按钮，以提供提示信息。
-                        el-tooltip 的 :disabled 属性控制提示是否显示。
-                        el-button 的 :disabled 属性控制按钮是否可点击。
-                     -->
                     <el-tooltip
                         effect="dark"
                         content="系统核心配置，禁止删除"
                         placement="top"
                         :disabled="row.configName !== 'sys_config'"
                     >
-                        <!-- 
-                            Tooltip 在包裹一个被禁用的组件时，需要一个外层元素（如此处的 span）来触发事件。
-                            这是一个 Element Plus 的推荐做法。
-                        -->
                         <span>
                             <el-button
                                 link
@@ -76,16 +74,13 @@
         <el-dialog :title="dialogTitle" v-model="dialogVisible" width="700px" top="5vh">
         <el-form ref="configForm" :model="formModel" :rules="formRules" label-width="100px">
             
-            <!-- --- 关键修改点在这里 --- -->
             <el-form-item label="配置名" prop="configName">
-                <!-- 使用 Tooltip 提升用户体验 -->
                 <el-tooltip
                     effect="dark"
                     content="配置名创建后不可修改"
                     placement="top"
                     :disabled="!formModel.id"
                 >
-                    <!-- 使用一个外层 div 包裹，确保 tooltip 在 input 禁用时也能触发 -->
                     <div style="width: 100%;">
                         <el-input
                             v-model="formModel.configName"
@@ -107,12 +102,10 @@
                                 <el-input v-model="field.value" placeholder="值 (Value)"></el-input>
                             </el-col>
                             <el-col :span="4">
-                                <!-- 修改点 1: 使用文字按钮代替图标按钮 -->
                                 <el-button type="danger" @click="removeField(index)" link>删除</el-button>
                             </el-col>
                         </el-row>
                     </div>
-                     <!-- 修改点 2: 使用文本 '+' 代替图标 -->
                      <el-button type="primary" @click="addField" link>+ 添加配置项</el-button>
                 </el-form-item>
 
@@ -132,15 +125,9 @@
 <script>
 import { listConfigs, createConfig, updateConfig, deleteConfig } from '../api/sysConfig';
 import { ElMessage, ElMessageBox } from 'element-plus';
-// 修改点 3: 移除图标的导入和注册
-// import { Plus, Minus } from '@element-plus/icons-vue';
 
 export default {
   name: 'sys_config',
-  // components: { // 移除 components 注册
-  //     Plus,
-  //     Minus
-  // },
   data() {
     // 自定义动态字段校验器
     const validateDynamicFields = (rule, value, callback) => {
@@ -162,6 +149,12 @@ export default {
     };
 
     return {
+      // --- 新增点 1: 创建中英文映射字典 ---
+      // 在这里集中管理所有的映射关系，方便维护和扩展
+      keyMap: {
+        'USDT-STY': 'USDT转STY汇率',
+        'VIP_PRICE':'VIP价格',
+      },
       loading: false,
       tableData: [],
       dialogVisible: false,
@@ -178,6 +171,16 @@ export default {
     }
   },
   methods: {
+    // --- 新增点 2: 创建翻译方法 ---
+    /**
+     * 根据 keyMap 翻译配置键
+     * @param {string} key - 原始的英文配置键
+     * @returns {string} - 翻译后的中文名，如果未找到则返回原键
+     */
+    translateKey(key) {
+        return this.keyMap[key] || key;
+    },
+
     formatJson(jsonObj) {
         if (typeof jsonObj !== 'object' || jsonObj === null) return String(jsonObj);
         return JSON.stringify(jsonObj, null, 2);
@@ -194,41 +197,25 @@ export default {
             this.loading = false;
         }
     },
+    
+    // ... 其他方法保持不变 ...
 
-     /**
-         * --- 新增辅助方法 ---
-         * 将 JSON 对象转换为适用于表格展示的 Key-Value 数组
-         * 例如，输入: { "host": "127.0.0.1", "port": 3306 }
-         *      输出: [
-         *              { key: "host", value: "127.0.0.1" },
-         *              { key: "port", value: 3306 }
-         *            ]
-         */
-        transformConfigValueForDisplay(jsonObj) {
-            if (typeof jsonObj !== 'object' || jsonObj === null) {
-                return [];
+    transformConfigValueForDisplay(jsonObj) {
+        if (typeof jsonObj !== 'object' || jsonObj === null) {
+            return [];
+        }
+        return Object.entries(jsonObj).map(([key, value]) => {
+            if (typeof value === 'object' && value !== null) {
+                return { key, value: JSON.stringify(value, null, 2) };
             }
-            return Object.entries(jsonObj).map(([key, value]) => {
-                // 对于对象或数组类型的值，转为JSON字符串显示，避免表格显示为 [object Object]
-                if (typeof value === 'object' && value !== null) {
-                    return { key, value: JSON.stringify(value, null, 2) };
-                }
-                // 其他类型直接返回值（转为字符串保证显示正常）
-                return { key, value: String(value) };
-            });
-        },
+            return { key, value: String(value) };
+        });
+    },
 
-        formatJson(jsonObj) {
-            if (typeof jsonObj !== 'object' || jsonObj === null) return String(jsonObj);
-            return JSON.stringify(jsonObj, null, 2);
-        },
-
-        formatValueForDisplay(value) {
-        // 如果值本身是对象或数组，将其格式化为JSON字符串，以便阅读
+    formatValueForDisplay(value) {
         if (typeof value === 'object' && value !== null) {
             return JSON.stringify(value, null, 2);
         }
-        // 对于布尔值、数字等，直接转为字符串
         return String(value);
     },
     addField() {
@@ -255,7 +242,6 @@ export default {
         const fields = [];
         if (row.configValue && typeof row.configValue === 'object') {
             for (const key in row.configValue) {
-                // 将后端返回的 boolean/number 类型也转为 string 以便在输入框中显示
                 fields.push({ key: key, value: String(row.configValue[key]) });
             }
         }
@@ -303,7 +289,6 @@ export default {
                 const constructedJson = {};
                 this.formModel.dynamicFields.forEach(field => {
                     let value = field.value;
-                    // 尝试智能转换类型 (string -> number/boolean/null)
                     if (!isNaN(value) && value.trim() !== '' && !isNaN(parseFloat(value))) {
                         value = Number(value);
                     } else if (value.toLowerCase() === 'true') {
@@ -351,6 +336,7 @@ export default {
 </script>
 
 <style scoped>
+/* 样式部分无需改动，故省略 */
 .sys-config-container {
     padding: 24px;
 }
@@ -366,22 +352,14 @@ pre {
 .dynamic-field-row {
     margin-bottom: 10px;
 }
-/* 微调删除按钮的对齐 */
 .dynamic-field-row .el-col:last-child {
     text-align: right;
 }
-
-
-/* --- 新增样式 --- */
-/* 
-   确保 Popover 内部表格的值可以正常换行，
-   并且保持等宽字体的格式
-*/
 .popover-pre {
     margin: 0;
     font-family: Consolas, 'Courier New', monospace;
-    white-space: pre-wrap;       /* 自动换行 */
-    word-break: break-all;     /* 单词内换行 */
-    font-size: 13px;             /* 字体稍小一点，更紧凑 */
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-size: 13px;
 }
 </style>

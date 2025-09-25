@@ -89,7 +89,7 @@ export default {
           { prop: 'name', label: '产品名称' },
           { prop: 'type', label: '类型' },
           { prop: 'price', label: '单价/起投金额' },
-          { prop: 'cycleDays', label: '周期(天)' }, // Pojo 中是天
+          { prop: 'cycleDays', label: '周期(时)' }, // Pojo 中是天
           { prop: 'yieldRate', label: '收益率' },
           { prop: 'purchaseLimit', label: '限购数量(为0表示无限制)' },
           // 新增字段
@@ -106,7 +106,7 @@ export default {
       formRules: {
           name: [{ required: true, message: '产品名称不能为空', trigger: 'blur' }],
           price: [{ required: true, message: '单价/起投金额不能为空', trigger: 'blur' }],
-          cycleDays: [{ required: true, message: '周期天数不能为空', trigger: 'blur' }],
+          cycleDays: [{ required: true, message: '周期(时)不能为空', trigger: 'blur' }],
           yieldRate: [{ required: true, message: '收益率不能为空', trigger: 'blur' }],
       }
     }

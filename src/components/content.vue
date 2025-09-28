@@ -46,6 +46,10 @@
                 <el-tab-pane label="收益详情" name="earningsDetails">
                     <wangeditor v-model="formModel.earningsDetails" />
                 </el-tab-pane>
+
+                <el-tab-pane label="公告" name="announcement">
+                    <wangeditor v-model="formModel.announcement" />
+                </el-tab-pane>
             </el-tabs>
         </div>
     </div>
@@ -75,6 +79,7 @@ export default {
                 tokenConsensus: '',
                 minerGameplayGuide: '',
                 earningsDetails: '',
+                announcement:''
                 // createTime 和 updateTime 由后端管理，前端无需提交
             }
         };

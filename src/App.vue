@@ -9,7 +9,9 @@
     <el-tab-pane label="公司内容简介设置" name="5"><content></content></el-tab-pane>
     <el-tab-pane label="平台资金流水" name="6"><userPlatformFlow></userPlatformFlow></el-tab-pane>
     <el-tab-pane label="团队管理" name="7"><TeamManagement></TeamManagement></el-tab-pane>
-    
+    <el-tab-pane label="STY交易池管理" name="8"><StyExchange></StyExchange></el-tab-pane>
+    <el-tab-pane label="用户提现审批" name="9"><UserWithdrawalReview></UserWithdrawalReview></el-tab-pane>
+    <el-tab-pane label="会员等级" name="10"><VipLevelManagement></VipLevelManagement></el-tab-pane>
   </el-tabs>
 </template>
 
@@ -22,6 +24,9 @@ import { getTables } from './api/dynamicTable';
 import content from './components/content.vue';
 import userPlatformFlow from './components/userPlatformFlow.vue';
 import TeamManagement from './components/TeamManagement.vue';
+import StyExchange from './components/StyExchange.vue';
+import UserWithdrawalReview from './components/UserWithdrawalReview.vue';
+import VipLevelManagement from './components/VipLevelManagement.vue';
 export default {
   components: {
     user,
@@ -30,7 +35,10 @@ export default {
     sysconfig,
     content,
     userPlatformFlow,
-    TeamManagement
+    TeamManagement,
+    StyExchange,
+    UserWithdrawalReview,
+    VipLevelManagement
   },
   data() {
     return {

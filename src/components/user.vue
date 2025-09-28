@@ -4,6 +4,14 @@
         <!-- <div class="toolbar" style="margin-bottom: 18px;">
             <el-button type="primary" @click="handleCreate">新增用户</el-button>
         </div> -->
+        <el-alert 
+            title="谨慎删除用户" 
+            type="error"
+            description="该项下面的操作请谨慎" 
+            show-icon 
+            :closable="false" 
+            style="margin-bottom: 20px;"
+        />
 
         <!-- 表格主体 -->
         <el-table :data="tableData" border style="width: 100%" v-loading="loading">

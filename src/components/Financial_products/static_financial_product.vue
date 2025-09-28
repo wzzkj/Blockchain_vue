@@ -87,7 +87,7 @@ export default {
       tableColumns: [
           { prop: 'id', label: 'ID' },
           { prop: 'name', label: '产品名称' },
-          { prop: 'type', label: '类型' },
+        //   { prop: 'type', label: '类型' },
           { prop: 'price', label: '单价/起投金额' },
           { prop: 'cycleDays', label: '周期(时)' }, // Pojo 中是天
           { prop: 'yieldRate', label: '收益率' },

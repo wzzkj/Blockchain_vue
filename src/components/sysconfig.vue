@@ -3,7 +3,7 @@
 
       <el-alert 
             title="系统配置谨慎修改" 
-            type="primary"
+            type="error"
             description="非常重要的配置项，禁止删除 sys_config 配置，更改任何配置前请思考" 
             show-icon 
             :closable="false" 
@@ -17,7 +17,18 @@
         <!-- 表格主体 -->
         <el-table :data="tableData" border stripe style="width: 100%" v-loading="loading">
             <el-table-column prop="id" label="ID" width="80" />
-            <el-table-column prop="configName" label="配置名" min-width="200" />
+            
+            <!-- 
+                --- 关键修改点 1 ---
+                将 prop="configName" 的直接显示，改为使用 template slot
+                这样我们可以对配置名进行翻译
+            -->
+            <el-table-column label="配置名" min-width="200">
+                <template #default="{ row }">
+                    {{ translateKey(row.configName) }}
+                </template>
+            </el-table-column>
+
             <el-table-column label="配置值详情" min-width="400">
                 <template #default="{ row }">
                     <el-descriptions
@@ -27,11 +38,6 @@
                         size="small"
                         border
                     >
-                        <!-- 
-                            --- 关键修改点 ---
-                            将 :label="key" 修改为 :label="translateKey(key)"
-                            这样每个配置键都会经过我们的翻译方法处理
-                        -->
                         <el-descriptions-item
                             v-for="(value, key) in row.configValue"
                             :key="key"
@@ -92,22 +98,43 @@
             </el-form-item>
 
             <!-- 动态键值对表单 -->
-                <el-form-item label="配置值" prop="dynamicFields">
-                    <div v-for="(field, index) in formModel.dynamicFields" :key="index" class="dynamic-field-row">
-                        <el-row :gutter="10">
-                            <el-col :span="10">
-                                <el-input v-model="field.key" placeholder="键 (Key)"></el-input>
-                            </el-col>
-                            <el-col :span="10">
-                                <el-input v-model="field.value" placeholder="值 (Value)"></el-input>
-                            </el-col>
-                            <el-col :span="4">
-                                <el-button type="danger" @click="removeField(index)" link>删除</el-button>
-                            </el-col>
-                        </el-row>
-                    </div>
-                     <el-button type="primary" @click="addField" link>+ 添加配置项</el-button>
-                </el-form-item>
+            <el-form-item label="配置值" prop="dynamicFields">
+                <div v-for="(field, index) in formModel.dynamicFields" :key="index" class="dynamic-field-row">
+                    <el-row :gutter="10">
+                        <el-col :span="10">
+                            <!-- 
+                                --- 关键修改点 2 ---
+                                对“键”输入框进行逻辑判断：
+                                - 如果是已存在的字段，则禁用输入框，并显示其中文翻译，同时用 tooltip 显示原始 key
+                                - 如果是新增的字段，则保持为可编辑的输入框
+                            -->
+                            <el-tooltip
+                                v-if="field.isExisting"
+                                effect="dark"
+                                :content="`原始Key: ${field.key}`"
+                                placement="top"
+                            >
+                                <el-input
+                                    :value="translateKey(field.key)"
+                                    disabled
+                                />
+                            </el-tooltip>
+                            <el-input
+                                v-else
+                                v-model="field.key"
+                                placeholder="键 (Key)"
+                            ></el-input>
+                        </el-col>
+                        <el-col :span="10">
+                            <el-input v-model="field.value" placeholder="值 (Value)"></el-input>
+                        </el-col>
+                        <el-col :span="4">
+                            <el-button type="danger" @click="removeField(index)" link>删除</el-button>
+                        </el-col>
+                    </el-row>
+                </div>
+                 <el-button type="primary" @click="addField" link>+ 添加配置项</el-button>
+            </el-form-item>
 
         </el-form>
         <template #footer>
@@ -149,11 +176,26 @@ export default {
     };
 
     return {
-      // --- 新增点 1: 创建中英文映射字典 ---
+      // --- 新增点 1: 扩展中英文映射字典 ---
       // 在这里集中管理所有的映射关系，方便维护和扩展
       keyMap: {
+        // 配置组名 (configName) 的映射
+        'sys_config': '系统核心配置',
+        'user_config': '用户相关配置', // 举例
+        'Backend_Address_Warning_Settings' : '后台地址报警设置',
+        'VIP' : '会员',
+
+        // 配置项键 (key) 的映射
         'USDT-STY': 'USDT转STY汇率',
         'VIP_PRICE':'VIP价格',
+        'LEASE_ADDRESS':"能量租赁地址",
+        'PLATFORM_RECEIVE_ADDRESS':"平台链上地址",
+        'Withdrawal_fee_exchange_rate':"提现手续费汇率",
+        'USDT_MIN':"后台最低USDT",
+        'PROFIT_RATE':"手续费盈利",
+        'TRX_TO_STY_RATE':"消耗TRX倍率",
+        'PLATFORM_TRX_MIN':"平台TRX最低保有量",
+        'Number_of_user_make_up_sign_ins':'用户补签次数'
       },
       loading: false,
       tableData: [],
@@ -171,19 +213,21 @@ export default {
     }
   },
   methods: {
-    // --- 新增点 2: 创建翻译方法 ---
+    // --- 新增点 2: 创建翻译方法 (代码不变, 作用更广) ---
     /**
-     * 根据 keyMap 翻译配置键
-     * @param {string} key - 原始的英文配置键
-     * @returns {string} - 翻译后的中文名，如果未找到则返回原键
+     * 根据 keyMap 翻译配置键或配置名
+     * @param {string} key - 原始的英文标识符
+     * @returns {string} - 翻译后的中文名，如果未找到则返回原标识符
      */
     translateKey(key) {
         return this.keyMap[key] || key;
     },
 
-    formatJson(jsonObj) {
-        if (typeof jsonObj !== 'object' || jsonObj === null) return String(jsonObj);
-        return JSON.stringify(jsonObj, null, 2);
+    formatValueForDisplay(value) {
+        if (typeof value === 'object' && value !== null) {
+            return JSON.stringify(value, null, 2);
+        }
+        return String(value);
     },
 
     async loadConfigs() {
@@ -198,28 +242,10 @@ export default {
         }
     },
     
-    // ... 其他方法保持不变 ...
-
-    transformConfigValueForDisplay(jsonObj) {
-        if (typeof jsonObj !== 'object' || jsonObj === null) {
-            return [];
-        }
-        return Object.entries(jsonObj).map(([key, value]) => {
-            if (typeof value === 'object' && value !== null) {
-                return { key, value: JSON.stringify(value, null, 2) };
-            }
-            return { key, value: String(value) };
-        });
-    },
-
-    formatValueForDisplay(value) {
-        if (typeof value === 'object' && value !== null) {
-            return JSON.stringify(value, null, 2);
-        }
-        return String(value);
-    },
     addField() {
-        this.formModel.dynamicFields.push({ key: '', value: '' });
+        // --- 关键修改点 3 ---
+        // 新增的字段标记为 isExisting: false
+        this.formModel.dynamicFields.push({ key: '', value: '', isExisting: false });
     },
     removeField(index) {
         this.formModel.dynamicFields.splice(index, 1);
@@ -229,7 +255,9 @@ export default {
         this.formModel = {
             id: null,
             configName: '',
-            dynamicFields: [{ key: '', value: '' }]
+            // --- 关键修改点 4 ---
+            // 新增配置时，第一个字段也标记为 isExisting: false
+            dynamicFields: [{ key: '', value: '', isExisting: false }]
         };
         this.dialogTitle = '新增系统配置';
         this.dialogVisible = true;
@@ -242,17 +270,23 @@ export default {
         const fields = [];
         if (row.configValue && typeof row.configValue === 'object') {
             for (const key in row.configValue) {
-                fields.push({ key: key, value: String(row.configValue[key]) });
+                // --- 关键修改点 5 ---
+                // 从现有配置加载字段时，标记 isExisting: true
+                fields.push({ 
+                    key: key, 
+                    value: String(row.configValue[key]),
+                    isExisting: true // 标记为已存在的字段
+                });
             }
         }
         
         this.formModel = {
             id: row.id,
             configName: row.configName,
-            dynamicFields: fields.length > 0 ? fields : [{ key: '', value: '' }]
+            dynamicFields: fields.length > 0 ? fields : [{ key: '', value: '', isExisting: false }]
         };
 
-        this.dialogTitle = '编辑系统配置';
+        this.dialogTitle = `编辑配置 - ${this.translateKey(row.configName)}`;
         this.dialogVisible = true;
         this.$nextTick(() => {
             this.$refs.configForm?.clearValidate();
@@ -262,7 +296,7 @@ export default {
     async handleDelete(row) {
         try {
             await ElMessageBox.confirm(
-                `确定要删除配置 "${row.configName}" (ID: ${row.id}) 吗？`,
+                `确定要删除配置 "${this.translateKey(row.configName)}" (ID: ${row.id}) 吗？`,
                 '警告', { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
             );
             const res = await deleteConfig(row.id);
@@ -284,6 +318,7 @@ export default {
     },
 
     submitForm() {
+        // 提交逻辑无需任何修改，因为它依赖的是 field.key，我们始终保持了原始 key 的正确性
         this.$refs.configForm.validate(async (valid) => {
             if (valid) {
                 const constructedJson = {};
@@ -336,14 +371,17 @@ export default {
 </script>
 
 <style scoped>
-/* 样式部分无需改动，故省略 */
 .sys-config-container {
     padding: 24px;
 }
 .toolbar {
     margin-bottom: 18px;
 }
-pre {
+.config-descriptions {
+    /* 解决 el-descriptions 标签宽度不固定的问题 */
+    --el-descriptions-item-label-width: 150px;
+}
+.description-value-pre {
     margin: 0;
     font-family: Consolas, 'Courier New', monospace;
     white-space: pre-wrap;
@@ -352,14 +390,10 @@ pre {
 .dynamic-field-row {
     margin-bottom: 10px;
 }
+.dynamic-field-row:last-child {
+    margin-bottom: 0;
+}
 .dynamic-field-row .el-col:last-child {
     text-align: right;
-}
-.popover-pre {
-    margin: 0;
-    font-family: Consolas, 'Courier New', monospace;
-    white-space: pre-wrap;
-    word-break: break-all;
-    font-size: 13px;
 }
 </style>

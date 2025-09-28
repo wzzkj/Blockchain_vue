@@ -4,9 +4,9 @@
         <div class="toolbar" style="margin-bottom: 18px;">
             <!-- 给 el-form 添加一个自定义类名，如 'search-form' -->
             <el-form ref="searchFormRef" :model="searchForm" :inline="true" class="search-form">
-                <el-form-item label="用户ID" prop="userId">
+                <!-- <el-form-item label="用户ID" prop="userId">
                     <el-input v-model="searchForm.userId" placeholder="请输入用户ID" clearable />
-                </el-form-item>
+                </el-form-item> -->
                 <el-form-item label="钱包地址" prop="userWalletAddress">
                     <el-input v-model="searchForm.userWalletAddress" placeholder="请输入钱包地址" clearable />
                 </el-form-item>
@@ -68,7 +68,7 @@
                 :prop="column.prop" 
                 :label="column.label"
                 show-overflow-tooltip 
-                min-width="180">
+                >
             </el-table-column>
         </el-table>
 

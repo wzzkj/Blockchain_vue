@@ -7,9 +7,11 @@
                 <!-- <el-form-item label="用户ID" prop="userId">
                     <el-input v-model="searchForm.userId" placeholder="请输入用户ID" clearable />
                 </el-form-item> -->
+                
                 <el-form-item label="钱包地址" prop="userWalletAddress">
                     <el-input v-model="searchForm.userWalletAddress" placeholder="请输入钱包地址" clearable />
                 </el-form-item>
+                <el-divider direction="vertical" />
                 <!-- <el-form-item label="交易单号" prop="transactionOrderId">
                     <el-input v-model="searchForm.transactionOrderId" placeholder="请输入系统交易单号" clearable />
                 </el-form-item> -->
@@ -27,6 +29,7 @@
                         />
                     </el-select>
                 </el-form-item>
+                <el-divider direction="vertical" />
 
                 <!-- 资金类型 -->
                 <el-form-item label="资金类型" prop="fundType">
@@ -42,6 +45,7 @@
                         />
                     </el-select>
                 </el-form-item>
+                <el-divider direction="vertical" />
                  <el-form-item label="交易时间" prop="timeRange">
                     <el-date-picker
                         v-model="searchForm.timeRange"
@@ -52,6 +56,7 @@
                         value-format="YYYY-MM-DD HH:mm:ss"
                     />
                 </el-form-item>
+                <el-divider direction="vertical" />
                 <el-form-item>
                     <el-button type="primary" @click="handleSearch">查询</el-button>
                     <el-button @click="resetSearch">重置</el-button>

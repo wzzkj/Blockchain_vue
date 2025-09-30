@@ -14,6 +14,7 @@
                         />
                     </el-select>
                 </el-form-item>
+                <el-divider direction="vertical" />
 
                 <!-- 订单状态 -->
                 <el-form-item label="订单状态" prop="orderStatus">
@@ -26,6 +27,7 @@
                         />
                     </el-select>
                 </el-form-item>
+                <el-divider direction="vertical" />
 
                  <el-form-item label="创建时间" prop="timeRange">
                     <el-date-picker
@@ -38,6 +40,7 @@
                     />
                 </el-form-item>
 
+                <el-divider direction="vertical" />
                 <el-form-item>
                     <el-button type="primary" @click="handleSearch" :loading="loading">查询</el-button>
                     <el-button @click="resetSearch">重置</el-button>

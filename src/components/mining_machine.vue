@@ -67,6 +67,17 @@
                             :placeholder="'请输入' + field.label"
                         />
                     </el-form-item>
+
+                    <el-form-item v-else-if="field.prop === 'isBuy'" :label="field.label" :prop="field.prop">
+                        <el-select
+                            v-model="formModel.isBuy"
+                            placeholder="请选择是否可购买"
+                            style="width: 100%;"
+                        >
+                            <el-option label="是" :value="true" />
+                            <el-option label="否" :value="false" />
+                        </el-select>
+                    </el-form-item>
                     
                     <!-- 其他所有字段的通用渲染 -->
                     <el-form-item v-else :label="field.label" :prop="field.prop">
@@ -118,6 +129,7 @@ export default {
                 { prop: 'yieldRate', label: '周期收益率 0.05 代表 5%' },
                 { prop: 'purchaseLimit', label: '限购数量(0为不限)' },
                 { prop: 'description', label: '矿机描述' },
+                {prop: 'isBuy', label: '是否可购买'},
             ],
             cycleTypeOptions: [
                 { label: '按天(DAY)', value: 'DAY' },

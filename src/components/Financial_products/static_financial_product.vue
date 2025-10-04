@@ -42,6 +42,16 @@
                         v-model="formModel[field.prop]"
                         :placeholder="'请输入' + field.label"
                     />
+                    <el-form-item v-else-if="field.prop === 'isBuy'" :label="field.label" :prop="field.prop">
+                        <el-select
+                            v-model="formModel.isBuy"
+                            placeholder="请选择是否可购买"
+                            style="width: 100%;"
+                        >
+                            <el-option label="是" :value="true" />
+                            <el-option label="否" :value="false" />
+                        </el-select>
+                    </el-form-item>
                     <!-- 其他字段使用普通 input -->
                     <el-input
                         v-else
@@ -96,6 +106,7 @@ export default {
         //   { prop: 'limitNumberPurchases', label: '限制购买次数' },
         //   { prop: 'uid', label: '用户UID' },
         //   { prop: 'uuid', label: 'UUID' },
+        {prop: 'isBuy', label: '是否可购买'},
           { prop: 'creatTime', label: '创建时间' },
           { prop: 'updateTime', label: '更新时间' }
       ],

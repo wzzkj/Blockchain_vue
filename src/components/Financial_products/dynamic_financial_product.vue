@@ -9,6 +9,7 @@
         <el-table :data="tableData" border stripe style="width: 100%" v-loading="loading">
             <!-- 动态渲染数据列 -->
             <el-table-column
+
                 v-for="column in tableColumns"
                 :key="column.prop"
                 :prop="column.prop"
@@ -16,6 +17,7 @@
                 show-overflow-tooltip
                 min-width="150"
             >
+
             </el-table-column>
             <!-- 固定在右侧的操作列 -->
             <el-table-column label="操作" fixed="right" width="180">
@@ -47,6 +49,20 @@
                         v-model="formModel[field.prop]"
                         :placeholder="'请输入' + field.label"
                     />
+
+                    
+          <!-- 是否开启 (开关) -->
+          <el-form-item
+            v-else-if="field.prop === 'isBuy'"
+            :label="field.label"
+            :prop="field.prop"
+          >
+            <el-switch
+              v-model="formModel.isBuy"
+              :active-value="true"
+              :inactive-value="false"
+            />
+          </el-form-item>
                     <!-- 其他字段使用普通 input -->
                     <el-input
                         v-else
@@ -93,13 +109,14 @@ export default {
           { prop: 'name', label: '产品名称' },
         //   { prop: 'type', label: '类型' },
           { prop: 'price', label: '单价/起投金额' },
-          { prop: 'cycleDays', label: '周期(天)' },
+          { prop: 'cycleDays', label: '周期(小时)' },
           { prop: 'yieldRate', label: '收益率' },
           { prop: 'purchaseLimit', label: '限购数量(为0表示无限制)' },
         //   { prop: 'uid', label: '用户UID' },
         //   { prop: 'uuid', label: 'UUID' },
           { prop: 'creatTime', label: '创建时间' },
-          { prop: 'updateTime', label: '更新时间' }
+          { prop: 'updateTime', label: '更新时间' },
+                    { prop: 'isBuy', label: 'true是开启false是关闭' }
       ],
 
       dialogVisible: false,

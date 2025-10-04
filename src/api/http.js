@@ -1,7 +1,8 @@
 import axios from 'axios'
 
 
-export const BASE_URL = 'http://192.168.110.101:8065'
+// export const BASE_URL = 'http://192.168.110.101:8065'
+export const BASE_URL = 'https://tronApi.steadyai.vip'
 
 
 const http = axios.create({

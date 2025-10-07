@@ -12,6 +12,8 @@
     <el-tab-pane label="STY交易池管理" name="8"><StyExchange></StyExchange></el-tab-pane>
     <el-tab-pane label="用户提现审批" name="9"><UserWithdrawalReview></UserWithdrawalReview></el-tab-pane>
     <el-tab-pane label="会员等级" name="10"><VipLevelManagement></VipLevelManagement></el-tab-pane>
+     <el-tab-pane label="签到奖励配置" name="11"><SignInReward></SignInReward></el-tab-pane>
+    
   </el-tabs>
 </template>
 
@@ -27,6 +29,7 @@ import TeamManagement from './components/TeamManagement.vue';
 import StyExchange from './components/StyExchange.vue';
 import UserWithdrawalReview from './components/UserWithdrawalReview.vue';
 import VipLevelManagement from './components/VipLevelManagement.vue';
+import SignInReward from './components/SignInReward.vue';
 export default {
   components: {
     user,
@@ -38,7 +41,8 @@ export default {
     TeamManagement,
     StyExchange,
     UserWithdrawalReview,
-    VipLevelManagement
+    VipLevelManagement,
+    SignInReward
   },
   data() {
     return {

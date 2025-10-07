@@ -42,16 +42,18 @@
                         v-model="formModel[field.prop]"
                         :placeholder="'请输入' + field.label"
                     />
-                    <el-form-item v-else-if="field.prop === 'isBuy'" :label="field.label" :prop="field.prop">
-                        <el-select
-                            v-model="formModel.isBuy"
-                            placeholder="请选择是否可购买"
-                            style="width: 100%;"
-                        >
-                            <el-option label="是" :value="true" />
-                            <el-option label="否" :value="false" />
-                        </el-select>
-                    </el-form-item>
+          <el-form-item
+            v-else-if="field.prop === 'isBuy'"
+            :label="field.label"
+            :prop="field.prop"
+          >
+            <el-switch
+              v-model="formModel.isBuy"
+              :active-value="true"
+              :inactive-value="false"
+            />
+          </el-form-item>
+
                     <!-- 其他字段使用普通 input -->
                     <el-input
                         v-else
@@ -99,7 +101,7 @@ export default {
           { prop: 'name', label: '产品名称' },
         //   { prop: 'type', label: '类型' },
           { prop: 'price', label: '单价/起投金额' },
-          { prop: 'cycleDays', label: '周期(时)' }, // Pojo 中是天
+          { prop: 'cycleDays', label: '周期(天)' }, // Pojo 中是天
           { prop: 'yieldRate', label: '收益率' },
           { prop: 'purchaseLimit', label: '限购数量(为0表示无限制)' },
           // 新增字段
@@ -108,7 +110,8 @@ export default {
         //   { prop: 'uuid', label: 'UUID' },
         {prop: 'isBuy', label: '是否可购买'},
           { prop: 'creatTime', label: '创建时间' },
-          { prop: 'updateTime', label: '更新时间' }
+          { prop: 'updateTime', label: '更新时间' },
+                { prop: 'isBuy', label: 'true是开启false是关闭' }
       ],
 
       dialogVisible: false,
@@ -117,7 +120,7 @@ export default {
       formRules: {
           name: [{ required: true, message: '产品名称不能为空', trigger: 'blur' }],
           price: [{ required: true, message: '单价/起投金额不能为空', trigger: 'blur' }],
-          cycleDays: [{ required: true, message: '周期(时)不能为空', trigger: 'blur' }],
+          cycleDays: [{ required: true, message: '周期(天)不能为空', trigger: 'blur' }],
           yieldRate: [{ required: true, message: '收益率不能为空', trigger: 'blur' }],
       }
     }

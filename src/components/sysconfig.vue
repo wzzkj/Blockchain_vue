@@ -186,8 +186,9 @@ export default {
         'VIP' : '会员',
 
         // 配置项键 (key) 的映射
-        'USDT-TRX':"USDT转TRX汇率",
-        'USDT-STY': 'USDT转STY汇率',
+        'USDT-TRX':"USDT转TRX价格",
+        'fee_rate':"手续费率",
+        'USDT-STY': 'USDT转STY价格',
         'VIP_PRICE':'VIP价格',
         'LEASE_ADDRESS':"能量租赁地址",
         'PLATFORM_RECEIVE_ADDRESS':"平台链上地址",
@@ -197,9 +198,12 @@ export default {
         'TRX_TO_STY_RATE':"消耗TRX倍率",
         'PLATFORM_TRX_MIN':"平台TRX最低保有量",
         'Number_of_user_make_up_sign_ins':'用户补签次数',
-        'b_Direct_Push':'收益比例-直推',
-        'b_Indirect_push':'收益比例-间推',
-        'b_Three_generations':'收益比例-三代'
+        'b_Direct_Push':'理财收益比例-直推',
+        'b_Indirect_push':'理财收益比例-间推',
+        'b_Three_generations':'理财收益比例-三代',
+        'b_Direct_Push_kj':'矿机收益比例-直推',
+        'b_Indirect_push_kj':'矿机收益比例-间推',
+        'b_Three_generations_kj':'矿机收益比例-三代'
 
       },
       loading: false,

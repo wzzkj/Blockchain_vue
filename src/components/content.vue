@@ -57,7 +57,7 @@
 
 <script>
 // 1. 引入你的 API 调用函数 和 编辑器组件
-import { getContentConfig, updateContentConfig } from '../api/contentConfig'; // 请确保路径正确
+import { getContentConfig, updateContentConfig,getFee } from '../api/contentConfig'; // 请确保路径正确
 import wangeditor from './wangeditor.vue'; // 请确保路径正确
 import { ElMessage } from 'element-plus';
 
@@ -131,6 +131,14 @@ export default {
             } finally {
                 this.loading = false;
             }
+        },
+        /**
+         * 获取手续费
+         */
+        async getFee(){
+            const re = await getFee();
+            console.log("获取用户手续费接口：",re);
+            
         }
     },
     /**
@@ -138,6 +146,7 @@ export default {
      */
     mounted() {
         this.loadConfig();
+        this.getFee();
     }
 }
 </script>

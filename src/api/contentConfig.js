@@ -58,3 +58,11 @@ export async function deleteContentConfig(id) {
   const response = await http.post(`/api/content-config/delete/${id}`, null, HDRS);
   return response.data; // 返回 Result2 对象, 其 data 字段为 boolean 或 错误信息
 }
+
+/**
+ * 获取手续费
+ */
+export async function getFee(){
+  const respose = await http.post('/api/user/get/free',null,HDRS);
+  return response.data;
+}

@@ -30,6 +30,7 @@
           </span>
         </template>
       </el-table-column>
+      
 
       <el-table-column label="操作" fixed="right" width="180">
         <template #default="{ row }">
@@ -88,7 +89,7 @@
           >
             <el-input-number
               v-model="formModel.cycleDuration"
-              :min="1"
+              :min="0"
               controls-position="right"
               placeholder="请输入周期时长"
               style="width: 100%"
@@ -109,6 +110,19 @@
             />
           </el-form-item>
 
+          <!-- ifOpenReferralEarnings -->
+           <!-- <el-form-item
+            v-else-if="field.prop === 'ifOpenReferralEarnings'"
+            :label="field.label"
+            :prop="field.prop"
+          >
+            <el-switch
+              v-model="formModel.ifOpenReferralEarnings"
+              :active-value="true"
+              :inactive-value="false"
+            />
+          </el-form-item> -->
+
           <!-- 是否开启 (开关) -->
           <el-form-item
             v-else-if="field.prop === 'isBuy'"
@@ -121,6 +135,8 @@
               :inactive-value="false"
             />
           </el-form-item>
+
+          
 
           <!-- 其他所有字段的通用渲染 -->
           <el-form-item v-else :label="field.label" :prop="field.prop">
@@ -177,8 +193,9 @@ export default {
           label: "周期类型",
           formatter: this.cycleTypeFormatter,
         },
+        // {prop:"ifOpenReferralEarnings",label:"是否开启推荐收益"},
         { prop: "price", label: "单价(USDT)" },
-        { prop: "cycleDuration", label: "周期时长" },
+        { prop: "cycleDuration", label: "周期时长(为0代表永久)" },
         { prop: "yieldRate", label: "周期收益率 0.05 代表 5%" },
         { prop: "purchaseLimit", label: "限购数量(0为不限)" },
         { prop: "description", label: "矿机描述" },

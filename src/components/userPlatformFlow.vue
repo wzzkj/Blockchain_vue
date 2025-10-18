@@ -125,7 +125,9 @@ export default {
                 { value: 'DEPOSIT', label: '充值' },
                 { value: 'WITHDRAWAL', label: '提现' },
                 { value: 'PURCHASE', label: '购买' },
-                { value: 'EXCHANGE', label: '闪兑' }
+                { value: 'EXCHANGE', label: '闪兑' },
+                {value:'SYSTEM_DEPOSIT',label:"系统充值"},
+                {value:'SYSTEM_DEDUCTION',label:"系统扣款"}
             ],
             fundTypeOptions: [
                 { value: 'INCOME', label: '入账' },

@@ -41,6 +41,48 @@ export async function getAllUserPlatformFlow() {
 }
 
 /**
+ * 【管理员】为指定用户充值（系统调账）
+ * @description 需要管理员权限。为指定用户增加平台余额，生成一条 'SYSTEM_DEPOSIT' 类型的流水。
+ * @param {object} adjustmentData - 充值操作所需的数据
+ * @param {number} adjustmentData.userId - 要充值的用户ID
+ * @param {number} adjustmentData.amount - 充值金额，必须为正数
+ * @param {string} adjustmentData.remark - 操作备注，必填，用于审计
+ * @returns {Promise<Result<string>>} 返回操作结果
+ * @see POST /api/UserPlatformFlow/admin/deposit
+ */
+export async function systemDeposit(adjustmentData) {
+  if (!adjustmentData || !adjustmentData.userId || !adjustmentData.amount || !adjustmentData.remark) {
+    return Promise.reject(new Error("用户ID、金额和备注均为必填项"));
+  }
+  if (typeof adjustmentData.amount !== 'number' || adjustmentData.amount <= 0) {
+    return Promise.reject(new Error("金额必须是大于0的数字"));
+  }
+  const response = await http.post('/api/UserPlatformFlow/admin/deposit', adjustmentData, HDRS);
+  return response.data;
+}
+
+/**
+ * 【管理员】对指定用户进行扣款（系统调账）
+ * @description 需要管理员权限。对指定用户扣除平台余额，生成一条 'SYSTEM_DEDUCTION' 类型的流水。
+ * @param {object} adjustmentData - 扣款操作所需的数据
+ * @param {number} adjustmentData.userId - 要扣款的用户ID
+ * @param {number} adjustmentData.amount - 扣款金额，必须为正数
+ * @param {string} adjustmentData.remark - 操作备注，必填，用于审计
+ * @returns {Promise<Result<string>>} 返回操作结果
+ * @see POST /api/UserPlatformFlow/admin/deduct
+ */
+export async function systemDeduct(adjustmentData) {
+  // 前端进行基础校验
+  if (!adjustmentData || !adjustmentData.userId || !adjustmentData.amount || !adjustmentData.remark) {
+    return Promise.reject(new Error("用户ID、金额和备注均为必填项"));
+  }
+  if (typeof adjustmentData.amount !== 'number' || adjustmentData.amount <= 0) {
+    return Promise.reject(new Error("金额必须是大于0的数字"));
+  }
+  const response = await http.post('/api/UserPlatformFlow/admin/deduct', adjustmentData, HDRS);
+  return response.data;
+}
+/**
  * 根据动态条件查询用户资金流水
  * @description 如果不传入任何参数，则查询所有数据。
  * @param {object} [queryDTO={}] - 查询条件 DTO 对象

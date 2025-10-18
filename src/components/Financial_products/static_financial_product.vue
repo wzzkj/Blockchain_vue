@@ -15,6 +15,7 @@
                 show-overflow-tooltip
                 min-width="150"
             >
+            
             </el-table-column>
             <!-- 固定在右侧的操作列 -->
             <el-table-column label="操作" fixed="right" width="180">
@@ -53,6 +54,17 @@
               :inactive-value="false"
             />
           </el-form-item>
+                     <!-- <el-form-item
+            v-else-if="field.prop === 'ifOpenReferralEarnings'"
+            :label="field.label"
+            :prop="field.prop"
+          >
+            <el-switch
+              v-model="formModel.ifOpenReferralEarnings"
+              :active-value="true"
+              :inactive-value="false"
+            />
+          </el-form-item> -->
 
                     <!-- 其他字段使用普通 input -->
                     <el-input
@@ -101,6 +113,7 @@ export default {
           { prop: 'name', label: '产品名称' },
         //   { prop: 'type', label: '类型' },
           { prop: 'price', label: '单价/起投金额' },
+        //   {prop:"ifOpenReferralEarnings",label:"是否开启推荐收益"},
           { prop: 'cycleDays', label: '周期(天)' }, // Pojo 中是天
           { prop: 'yieldRate', label: '收益率' },
           { prop: 'purchaseLimit', label: '限购数量(为0表示无限制)' },

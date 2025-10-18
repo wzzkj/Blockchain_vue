@@ -24,8 +24,13 @@
                 </template>
             </el-table-column>
             <!-- 固定在右侧的操作列 -->
-            <el-table-column label="操作" fixed="right" width="180">
+            <el-table-column label="操作" fixed="right" width="280">
                 <template #default="{ row }">
+                    <!-- 【新增】系统调账按钮 -->
+                    <el-button link type="success" size="small" @click="handleAdjustment('deposit', row)">充值</el-button>
+                    <el-button link type="warning" size="small" @click="handleAdjustment('deduct', row)">扣款</el-button>
+                    <el-divider direction="vertical" />
+                    <!-- 原有按钮 -->
                     <el-button link type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
                     <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
                 </template>
@@ -51,12 +56,35 @@
                 </div>
             </template>
         </el-dialog>
+
+        <!-- 【新增】系统调账（充值/扣款）对话框 -->
+        <el-dialog :title="adjustmentDialog.title" v-model="adjustmentDialog.visible" width="500px">
+            <el-form ref="adjustmentForm" :model="adjustmentDialog.formModel" :rules="adjustmentDialog.formRules" label-width="120px">
+                <el-form-item label="用户UID">
+                    <el-input :value="adjustmentDialog.targetUserUid" disabled />
+                </el-form-item>
+                <el-form-item label="操作金额" prop="amount">
+                    <el-input-number v-model="adjustmentDialog.formModel.amount" :precision="2" :step="10" :min="0.01" controls-position="right" style="width: 100%;" />
+                </el-form-item>
+                <el-form-item label="操作备注" prop="remark">
+                    <el-input v-model="adjustmentDialog.formModel.remark" type="textarea" :rows="3" placeholder="请详细填写操作原因，用于审计" />
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <div class="dialog-footer">
+                    <el-button @click="cancelAdjustmentForm">取 消</el-button>
+                    <el-button type="primary" @click="submitAdjustmentForm">确 定</el-button>
+                </div>
+            </template>
+        </el-dialog>
     </div>
 </template>
 
 <script>
-// 引入所有需要的API
+// 引入用户表相关的API
 import { getRows, createRow, updateRow, deleteRow } from '../api/dynamicTable';
+// 【新增】引入用户资金流水相关的API
+import { systemDeposit, systemDeduct } from '../api/userPlatformFlow'; // 假设你的API文件名为 userPlatformFlow.js
 // 引入 Element Plus 的消息和确认框组件
 import { ElMessage, ElMessageBox } from 'element-plus';
 // 引入 js-md5 库
@@ -65,7 +93,7 @@ import md5 from 'js-md5';
 // 字段名到中文标签的映射
 const COLUMN_LABEL_MAP = {
     id: 'ID',
-    walletAddressId: '钱包地址', // <--- 修改标签
+    walletAddressId: '钱包地址',
     uid: '用户UID',
     balance: '余额',
     invitationCodeId: '邀请码',
@@ -87,27 +115,47 @@ export default {
             tableData: [],
             tableColumns: [],
             tableName: 'b_user',
-            walletTableName: 'Wallet', // 新增：钱包表名
+            walletTableName: 'Wallet',
             dialogVisible: false,
             dialogTitle: '',
             formModel: {},
             formRules: {
                 uid: [{ required: true, message: '用户UID不能为空', trigger: 'blur' }],
-                twoPassword: [{ required: false }], // 密码校验在提交时动态处理
+                twoPassword: [{ required: false }],
                 walletAddress: [{ required: true, message: '钱包地址不能为空', trigger: 'blur' }],
             },
-            walletMapById: new Map(), // 新增：用于根据ID查找钱包地址 (id -> address)
-            walletMapByAddress: new Map(), // 新增：用于根据地址查找钱包对象 (address -> wallet)
+            walletMapById: new Map(),
+            walletMapByAddress: new Map(),
+
+            // --- 【新增】系统调账对话框相关状态 ---
+            adjustmentDialog: {
+                visible: false,
+                title: '',
+                type: 'deposit', // 'deposit' or 'deduct'
+                targetUserUid: '', // 用于在对话框中显示目标用户
+                formModel: {
+                    userId: null,
+                    amount: undefined,
+                    remark: ''
+                },
+                formRules: {
+                    amount: [
+                        { required: true, message: '金额不能为空', trigger: 'blur' },
+                        { type: 'number', min: 0.01, message: '金额必须是大于0的数字', trigger: 'blur' }
+                    ],
+                    remark: [
+                        { required: true, message: '操作备注不能为空', trigger: 'blur' }
+                    ]
+                }
+            }
         };
     },
     computed: {
         formFields() {
-            // 动态生成表单字段，并手动加入钱包地址字段
             const fields = this.tableColumns
                 .filter(col => !EXCLUDED_FORM_FIELDS.includes(col.prop))
                 .map(col => ({ prop: col.prop, label: col.label }));
 
-            // 在 uid 字段后面插入钱包地址字段
             const uidIndex = fields.findIndex(f => f.prop === 'uid');
             if (uidIndex !== -1) {
                 fields.splice(uidIndex + 1, 0, {
@@ -126,13 +174,11 @@ export default {
         async fetchAllData() {
             this.loading = true;
             try {
-                // 1. 并行加载钱包和用户信息
                 const [wallets, users] = await Promise.all([
                     getRows(this.walletTableName),
                     getRows(this.tableName)
                 ]);
 
-                // 2. 处理钱包数据，构建查询映射
                 this.walletMapById.clear();
                 this.walletMapByAddress.clear();
                 if (Array.isArray(wallets)) {
@@ -142,10 +188,8 @@ export default {
                     });
                 }
                 
-                // 3. 处理用户数据
                 if (Array.isArray(users) && users.length > 0) {
                     this.tableData = users;
-                    // 仅在首次加载时生成列定义
                     if (this.tableColumns.length === 0) {
                         const keys = Object.keys(users[0]);
                         this.tableColumns = keys.map(key => ({
@@ -175,7 +219,7 @@ export default {
 
             this.formModel = {
                 uid: generatedUid,
-                walletAddress: '' // 初始化钱包地址为空
+                walletAddress: ''
             };
 
             this.dialogTitle = '新增用户';
@@ -183,12 +227,10 @@ export default {
         },
 
         handleEdit(row) {
-            // 复制行数据，并填充用于表单显示的钱包地址
             this.formModel = { 
                 ...row,
                 walletAddress: this.getWalletAddressById(row.walletAddressId)
             };
-            // 清空二级密码，避免显示哈希值，只有输入时才代表修改
             this.formModel.twoPassword = '';
             
             this.dialogTitle = '编辑用户';
@@ -204,11 +246,56 @@ export default {
                 });
                 await deleteRow(this.tableName, row.id);
                 ElMessage.success('删除成功！');
-                this.fetchAllData(); // 重新加载数据
+                this.fetchAllData();
             } catch (error) {
                 if (error !== 'cancel') {
                     ElMessage.error(error.message || '删除失败');
                 }
+            }
+        },
+
+        // --- 【新增】系统调账方法 ---
+        handleAdjustment(type, row) {
+            // 重置表单
+            this.adjustmentDialog.formModel = {
+                userId: row.id, // API需要的是userId
+                amount: undefined,
+                remark: ''
+            };
+            // 设置对话框类型和标题
+            this.adjustmentDialog.type = type;
+            this.adjustmentDialog.title = type === 'deposit' ? '系统充值' : '系统扣款';
+            this.adjustmentDialog.targetUserUid = row.uid;
+            // 显示对话框
+            this.adjustmentDialog.visible = true;
+
+            this.$nextTick(() => {
+                this.$refs.adjustmentForm.clearValidate();
+            });
+        },
+        
+        cancelAdjustmentForm() {
+            this.adjustmentDialog.visible = false;
+        },
+
+        async submitAdjustmentForm() {
+            try {
+                const valid = await this.$refs.adjustmentForm.validate();
+                if (!valid) {
+                    return;
+                }
+
+                const actionText = this.adjustmentDialog.type === 'deposit' ? '充值' : '扣款';
+                const apiToCall = this.adjustmentDialog.type === 'deposit' ? systemDeposit : systemDeduct;
+
+                await apiToCall(this.adjustmentDialog.formModel);
+                
+                ElMessage.success(`${actionText}操作成功！`);
+                this.cancelAdjustmentForm();
+                await this.fetchAllData(); // 操作成功后刷新列表数据
+
+            } catch (e) {
+                ElMessage.error(e.message || '操作失败');
             }
         },
 
@@ -226,35 +313,28 @@ export default {
         },
 
         async submitForm() {
-            // 动态设置密码校验规则
             const isEditMode = !!this.formModel.id;
             this.formRules.twoPassword = (isEditMode && !this.formModel.twoPassword)
-                ? [] // 编辑模式且密码为空，不校验
+                ? [] 
                 : [{ required: true, message: '二级密码不能为空', trigger: 'blur' }];
 
-            // 触发表单校验
             const valid = await this.$refs.userForm.validate();
             if (!valid) {
-                console.log('表单校验失败！');
                 return;
             }
 
             try {
                 const payload = { ...this.formModel };
-
-                // --- 核心逻辑：处理钱包地址 ---
                 const address = payload.walletAddress;
                 let walletId = null;
 
                 if (this.walletMapByAddress.has(address)) {
-                    // 1. 如果钱包地址已存在，直接获取其ID
                     walletId = this.walletMapByAddress.get(address).id;
                 } else {
-                    // 2. 如果是新地址，则创建新钱包
                     ElMessage.info('检测到新的钱包地址，正在为您创建...');
                     const newWalletData = {
-                        uuid: md5(Date.now().toString()), // 简单生成UUID
-                        keyField: Math.random().toString(36).substring(2, 12), // 简单生成随机字符串
+                        uuid: md5(Date.now().toString()),
+                        keyField: Math.random().toString(36).substring(2, 12),
                         userWalletAddress: address,
                         uid: payload.uid
                     };
@@ -263,25 +343,23 @@ export default {
                     ElMessage.success('新钱包创建成功！');
                 }
                 payload.walletAddressId = walletId;
-                delete payload.walletAddress; // 从提交给 user 表的负载中移除临时字段
+                delete payload.walletAddress;
                 
-                // --- 处理二级密码 ---
                 if (payload.twoPassword) {
                     payload.twoPassword = md5(payload.twoPassword);
                 } else {
                     delete payload.twoPassword;
                 }
 
-                // --- 提交用户数据 ---
-                if (payload.id) { // 更新操作
+                if (payload.id) {
                     await updateRow(this.tableName, payload.id, payload);
                     ElMessage.success('更新成功！');
-                } else { // 新增操作
+                } else {
                     await createRow(this.tableName, payload);
                     ElMessage.success('新增成功！');
                 }
                 this.dialogVisible = false;
-                await this.fetchAllData(); // 重新加载所有数据
+                await this.fetchAllData();
             } catch (e) {
                 ElMessage.error(e.message || '操作失败');
             }

@@ -9,7 +9,6 @@
         <el-table :data="tableData" border stripe style="width: 100%" v-loading="loading">
             <!-- 动态渲染数据列 -->
             <el-table-column
-
                 v-for="column in tableColumns"
                 :key="column.prop"
                 :prop="column.prop"
@@ -17,6 +16,7 @@
                 show-overflow-tooltip
                 min-width="150"
             >
+
 
             </el-table-column>
             <!-- 固定在右侧的操作列 -->
@@ -49,6 +49,17 @@
                         v-model="formModel[field.prop]"
                         :placeholder="'请输入' + field.label"
                     />
+                               <!-- <el-form-item
+            v-else-if="field.prop === 'ifOpenReferralEarnings'"
+            :label="field.label"
+            :prop="field.prop"
+          >
+            <el-switch
+              v-model="formModel.ifOpenReferralEarnings"
+              :active-value="true"
+              :inactive-value="false"
+            />
+          </el-form-item> -->
 
                     
           <!-- 是否开启 (开关) -->
@@ -107,6 +118,7 @@ export default {
       tableColumns: [
           { prop: 'id', label: 'ID' },
           { prop: 'name', label: '产品名称' },
+        //   {prop:"ifOpenReferralEarnings",label:"是否开启推荐收益"},
         //   { prop: 'type', label: '类型' },
           { prop: 'price', label: '单价/起投金额' },
           { prop: 'cycleDays', label: '周期(小时)' },

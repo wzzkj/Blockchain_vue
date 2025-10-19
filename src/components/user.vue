@@ -84,7 +84,7 @@
 // 引入用户表相关的API
 import { getRows, createRow, updateRow, deleteRow } from '../api/dynamicTable';
 // 【新增】引入用户资金流水相关的API
-import { systemDeposit, systemDeduct } from '../api/userPlatformFlow'; // 假设你的API文件名为 userPlatformFlow.js
+import { systemDeposit, systemDeduct ,getUserBalance} from '../api/userPlatformFlow'; // 假设你的API文件名为 userPlatformFlow.js
 // 引入 Element Plus 的消息和确认框组件
 import { ElMessage, ElMessageBox } from 'element-plus';
 // 引入 js-md5 库
@@ -189,7 +189,16 @@ export default {
                 }
                 
                 if (Array.isArray(users) && users.length > 0) {
-                    this.tableData = users;
+                    const balancePromises = users.map(user => getUserBalance(user.id));
+                    // 步骤 3: 并行执行所有余额请求
+                    const balanceResults = await Promise.all(balancePromises);
+                    const usersWithBalances = users.map((user, index) => {
+                        return {
+                            ...user,
+                            balance: balanceResults[index].data 
+                        };
+                    });
+                    this.tableData = usersWithBalances;
                     if (this.tableColumns.length === 0) {
                         const keys = Object.keys(users[0]);
                         this.tableColumns = keys.map(key => ({

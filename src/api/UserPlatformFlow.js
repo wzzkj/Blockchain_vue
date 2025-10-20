@@ -106,7 +106,7 @@ export async function searchUserPlatformFlow(queryDTO = {}) {
  * 根据用户id查询用户余额
  */
 export async function getUserBalance(userId) {
-  const response = await http.post(`/select/by-user/by-id/${userId}`, null, HDRS);
+  const response = await http.post(`/api/UserPlatformFlow/select/by-user/by-id/${userId}`, null, HDRS);
   return response.data;
 }
 

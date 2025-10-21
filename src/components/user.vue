@@ -17,14 +17,14 @@
         <el-table :data="tableData" border style="width: 100%" v-loading="loading">
             <!-- 动态渲染数据列 -->
             <el-table-column v-for="column in tableColumns" :key="column.prop" :prop="column.prop" :label="column.label"
-                show-overflow-tooltip min-width="150">
+                show-overflow-tooltip >
                 <!-- 自定义钱包地址列的显示 -->
                 <template #default="{ row }" v-if="column.prop === 'walletAddressId'">
                     <span>{{ getWalletAddressById(row.walletAddressId) }}</span>
                 </template>
             </el-table-column>
             <!-- 固定在右侧的操作列 -->
-            <el-table-column label="操作" fixed="right" width="280">
+            <el-table-column label="操作" fixed="right" width="220">
                 <template #default="{ row }">
                     <!-- 【新增】系统调账按钮 -->
                     <el-button link type="success" size="small" @click="handleAdjustment('deposit', row)">充值</el-button>
@@ -81,7 +81,7 @@
 </template>
 
 <script>
-// 引入用户表相关的API
+import {getUserStatsByAdmin} from '../api/user';
 import { getRows, createRow, updateRow, deleteRow } from '../api/dynamicTable';
 // 【新增】引入用户资金流水相关的API
 import { systemDeposit, systemDeduct ,getUserBalance} from '../api/userPlatformFlow'; // 假设你的API文件名为 userPlatformFlow.js
@@ -94,6 +94,7 @@ import md5 from 'js-md5';
 const COLUMN_LABEL_MAP = {
     id: 'ID',
     walletAddressId: '钱包地址',
+    YesterdayReward:'无效字段',
     uid: '用户UID',
     balance: '余额',
     invitationCodeId: '邀请码',
@@ -105,7 +106,7 @@ const COLUMN_LABEL_MAP = {
 };
 
 // 在表单中不应出现的字段
-const EXCLUDED_FORM_FIELDS = ['id', 'registrationTime', 'updateTime', 'walletAddressId'];
+const EXCLUDED_FORM_FIELDS = ['id', 'registrationTime', 'updateTime', 'walletAddressId','YesterdayReward'];
 
 export default {
     name: 'user',
@@ -189,21 +190,32 @@ export default {
                 }
                 
                 if (Array.isArray(users) && users.length > 0) {
-                    const balancePromises = users.map(user => getUserBalance(user.id));
-                    // 步骤 3: 并行执行所有余额请求
-                    const balanceResults = await Promise.all(balancePromises);
-                    const usersWithBalances = users.map((user, index) => {
+                    const additionalDataPromises = users.map(user => 
+                        Promise.all([
+                            getUserBalance(user.id),
+                            getUserStatsByAdmin(user.id) // 新增的API调用
+                        ])
+                    );
+                    
+                    // 步骤 4: 等待所有用户的附加数据请求完成
+                    const additionalDataResults = await Promise.all(additionalDataPromises);
+                    
+                    // 步骤 5: 将基础用户数据与获取到的附加数据合并
+                    const usersWithFullData = users.map((user, index) => {
+                        const [balanceResult, statsResult] = additionalDataResults[index];
                         return {
                             ...user,
-                            balance: balanceResults[index].data 
+                            balance: balanceResult.data, // 余额数据
+                            ...(statsResult.data || {}) // 将统计数据对象的属性展开合并到用户对象中
                         };
                     });
-                    this.tableData = usersWithBalances;
+                    
+                    this.tableData = usersWithFullData;
                     if (this.tableColumns.length === 0) {
-                        const keys = Object.keys(users[0]);
+                        const keys = Object.keys(usersWithFullData[0]);
                         this.tableColumns = keys.map(key => ({
                             prop: key,
-                            label: COLUMN_LABEL_MAP[key] || key
+                            label: COLUMN_LABEL_MAP[key] || key // 如果映射中没有，则直接使用key作为label
                         }));
                     }
                 } else {

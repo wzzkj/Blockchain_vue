@@ -11,6 +11,11 @@
                 <el-form-item label="钱包地址" prop="userWalletAddress">
                     <el-input v-model="searchForm.userWalletAddress" placeholder="请输入钱包地址" clearable />
                 </el-form-item>
+
+                <el-divider direction="vertical" />
+                <el-form-item label="交易备注关键字" prop="remark">
+                    <el-input v-model="searchForm.remark" placeholder="请输入交易备注关键字" clearable />
+                </el-form-item>
                 <el-divider direction="vertical" />
                 <!-- <el-form-item label="交易单号" prop="transactionOrderId">
                     <el-input v-model="searchForm.transactionOrderId" placeholder="请输入系统交易单号" clearable />
@@ -118,7 +123,8 @@ export default {
                 fundType: '',
                 timeRange: [], // 用于 el-date-picker
                 startTime: '',
-                endTime: ''
+                endTime: '',
+                remark:''
             },
             // --- 新增：为下拉框定义选项数据 ---
             transactionTypeOptions: [

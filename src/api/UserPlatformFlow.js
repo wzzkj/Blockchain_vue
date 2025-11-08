@@ -7,7 +7,7 @@ import http from './http' // 假设 http 模块在同级目录下
 
 // 沿用之前的请求头配置，如果需要的话
 // 注意：Sa-Token 通常通过 'Authorization' 或自定义 Token 名称的请求头来传递令牌
-const HDRS = { headers: { 'Account-test': 'application/q1s7j3z0e8' } }
+import { HDRS } from './apiConfig';
 
 /**
  * 获取当前登录用户的平台资金流水记录

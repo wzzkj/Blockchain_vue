@@ -6,7 +6,7 @@
 import http from './http' // 假设 http 模块封装了 axios 或 fetch
 
 // 沿用项目统一的请求头配置
-const HDRS = { headers: { 'Account-test': 'application/q1s7j3z0e8' } }
+import { HDRS } from './apiConfig';
 
 // --- 钱包管理 ---
 
@@ -17,7 +17,7 @@ const HDRS = { headers: { 'Account-test': 'application/q1s7j3z0e8' } }
  * @see POST /api/wallet/add
  */
 export async function addWallet(walletData) {
-  const response = await http.post('/api/wallet/add', walletData, HDRS);
+  const response = await http.post('/api/wallet/admin/add', walletData, HDRS);
   return response.data;
 }
 
@@ -29,7 +29,7 @@ export async function addWallet(walletData) {
  */
 export async function deleteWallet(walletId) {
   // 后端 @RequestBody 需要一个包含 id 的 Wallet 对象
-  const response = await http.post('/api/wallet/delete', { id: walletId }, HDRS);
+  const response = await http.post('/api/wallet/admin/delete', { id: walletId }, HDRS);
   return response.data;
 }
 
@@ -43,7 +43,7 @@ export async function updateWallet(walletData) {
   if (!walletData.id) {
     return Promise.reject(new Error("更新钱包信息必须提供 id"));
   }
-  const response = await http.post('/api/wallet/update', walletData, HDRS);
+  const response = await http.post('/api/wallet/admin/update', walletData, HDRS);
   return response.data;
 }
 
@@ -55,7 +55,7 @@ export async function updateWallet(walletData) {
  */
 export async function getWalletById(walletId) {
   // 后端 @RequestBody 需要一个包含 id 的 Wallet 对象
-  const response = await http.post('/api/wallet/get', { id: walletId }, HDRS);
+  const response = await http.post(`/api/wallet/by-id/admin/${walletId}`,null, HDRS);
   return response.data;
 }
 
@@ -66,7 +66,7 @@ export async function getWalletById(walletId) {
  * @see POST /api/wallet/list
  */
 export async function listWallets(pageConfig) {
-  const response = await http.post('/api/wallet/list', pageConfig, HDRS);
+  const response = await http.post('/api/wallet/admin/list', pageConfig, HDRS);
   return response.data;
 }
 

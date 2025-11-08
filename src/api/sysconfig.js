@@ -1,7 +1,7 @@
 import http from './http'
 
 // 沿用之前的请求头配置
-const HDRS = { headers: { 'Account-test': 'application/q1s7j3z0e8' } }
+import { HDRS } from './apiConfig';
 
 /**
  * 查询所有系统配置

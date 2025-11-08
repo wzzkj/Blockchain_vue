@@ -1,7 +1,7 @@
 import http from './http' // 假设 http 模块在同级目录下
 
 // 沿用之前的请求头配置，如果需要的话
-const HDRS = { headers: { 'Account-test': 'application/q1s7j3z0e8' } }
+import { HDRS } from './apiConfig';
 
 /**
  * 获取内容配置

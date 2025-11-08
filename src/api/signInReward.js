@@ -6,7 +6,7 @@
 import http from './http' // 假设 http 模块封装了axios或fetch，并在同级目录下
 
 // 沿用之前的请求头配置，如果需要登录token，http模块的请求拦截器通常会自动处理
-const HDRS = { headers: { 'Account-test': 'application/q1s7j3z0e8' } }
+import { HDRS } from './apiConfig';
 
 // --- 1. 基本的增删改查 ---
 

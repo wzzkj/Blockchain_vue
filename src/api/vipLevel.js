@@ -6,7 +6,7 @@
 import http from './http' // 假设 http 模块封装了 axios 或 fetch
 
 // 沿用项目统一的请求头配置
-const HDRS = { headers: { 'Account-test': 'application/q1s7j3z0e8' } }
+import { HDRS } from './apiConfig';
 
 // --- 会员等级管理 (后台) ---
 

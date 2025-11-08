@@ -7,7 +7,7 @@ import http from './http' // 假设 http 模块封装了axios或fetch
 
 // 假设提现审批接口也需要类似的测试账户头，如果不需要可以移除
 // 如果有统一的认证（如 Bearer Token），http 模块的请求拦截器应自动处理
-const HDRS = { headers: { 'Account-test': 'application/q1s7j3z0e8' } }
+import { HDRS } from './apiConfig';
 
 // --- 用户提现审批接口 ---
 

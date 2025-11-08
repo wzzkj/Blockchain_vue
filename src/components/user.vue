@@ -1,9 +1,9 @@
 <template>
     <div>
         <!-- 操作栏：放置新增按钮 -->
-        <div class="toolbar" style="margin-bottom: 18px;">
-            <el-button type="primary" @click="handleCreate">新增用户</el-button>
-        </div>
+        <!-- <div class="toolbar" style="margin-bottom: 18px;"> -->
+            <!-- <el-button type="primary" @click="handleCreate">新增用户</el-button> -->
+        <!-- </div> -->
         <el-alert 
             title="谨慎操作用户数据" 
             type="warning"
@@ -18,15 +18,11 @@
             <!-- 动态渲染数据列 -->
             <el-table-column v-for="column in tableColumns" :key="column.prop" :prop="column.prop" :label="column.label"
                 show-overflow-tooltip >
-                <!-- 自定义钱包地址列的显示 -->
-                <template #default="{ row }" v-if="column.prop === 'walletAddressId'">
-                    <span>{{ getWalletAddressById(row.walletAddressId) }}</span>
-                </template>
             </el-table-column>
             <!-- 固定在右侧的操作列 -->
             <el-table-column label="操作" fixed="right" width="220">
                 <template #default="{ row }">
-                    <!-- 【新增】系统调账按钮 -->
+                    <!-- 系统调账按钮 -->
                     <el-button link type="success" size="small" @click="handleAdjustment('deposit', row)">充值</el-button>
                     <el-button link type="warning" size="small" @click="handleAdjustment('deduct', row)">扣款</el-button>
                     <el-divider direction="vertical" />
@@ -44,7 +40,7 @@
                      <!-- 禁用 uid 输入框 -->
                     <el-input 
                         v-model="formModel[field.prop]" 
-                        :placeholder="'请输入' + field.label"
+                        :placeholder="field.prop === 'twoPassword' ? '留空表示不修改' : '请输入' + field.label"
                         :disabled="field.prop === 'uid'">
                     </el-input>
                 </el-form-item>
@@ -57,7 +53,7 @@
             </template>
         </el-dialog>
 
-        <!-- 【新增】系统调账（充值/扣款）对话框 -->
+        <!-- 系统调账（充值/扣款）对话框 -->
         <el-dialog :title="adjustmentDialog.title" v-model="adjustmentDialog.visible" width="500px">
             <el-form ref="adjustmentForm" :model="adjustmentDialog.formModel" :rules="adjustmentDialog.formRules" label-width="120px">
                 <el-form-item label="用户UID">
@@ -81,32 +77,35 @@
 </template>
 
 <script>
-import {getUserStatsByAdmin} from '../api/user';
-import { getRows, createRow, updateRow, deleteRow } from '../api/dynamicTable';
-// 【新增】引入用户资金流水相关的API
-import { systemDeposit, systemDeduct ,getUserBalance} from '../api/userPlatformFlow'; // 假设你的API文件名为 userPlatformFlow.js
-// 引入 Element Plus 的消息和确认框组件
+import {
+    getUserStatsByAdmin,
+    listUsersByAdmin,
+    updateUserByAdmin,
+    deleteUserByAdmin,
+    addUserByAdmin,
+    updateUserPasswordByAdmin // [新增] 导入更新密码的接口
+} from '../api/user';
+import { 
+    listWallets, 
+    addWallet, 
+    updateWallet
+} from '../api/wallet';
+import { systemDeposit, systemDeduct, getUserBalance } from '../api/userPlatformFlow';
+
 import { ElMessage, ElMessageBox } from 'element-plus';
-// 引入 js-md5 库
 import md5 from 'js-md5';
 
-// 字段名到中文标签的映射
 const COLUMN_LABEL_MAP = {
     id: 'ID',
-    walletAddressId: '钱包地址',
-    YesterdayReward:'无效字段',
     uid: '用户UID',
     balance: '余额',
+    userWalletAddress: '钱包地址',
     invitationCodeId: '邀请码',
     upInvitationCode: '上级邀请码',
-    twoPassword: '二级密码',
+    resignCount: '补签次数',
     registrationTime: '注册时间',
-    updateTime: '更新时间',
-    resignCount: '补签次数'
+    updateTime: '更新时间'
 };
-
-// 在表单中不应出现的字段
-const EXCLUDED_FORM_FIELDS = ['id', 'registrationTime', 'updateTime', 'walletAddressId','YesterdayReward'];
 
 export default {
     name: 'user',
@@ -114,112 +113,116 @@ export default {
         return {
             loading: false,
             tableData: [],
-            tableColumns: [],
-            tableName: 'b_user',
-            walletTableName: 'Wallet',
+            tableColumns: [], 
+            initialColumnsSet: false,
+            
             dialogVisible: false,
             dialogTitle: '',
             formModel: {},
+            originalWalletAddress: '', 
             formRules: {
                 uid: [{ required: true, message: '用户UID不能为空', trigger: 'blur' }],
-                twoPassword: [{ required: false }],
-                walletAddress: [{ required: true, message: '钱包地址不能为空', trigger: 'blur' }],
+                userWalletAddress: [{ required: true, message: '钱包地址不能为空', trigger: 'blur' }],
+                // [修改] 新增时密码必填，编辑时非必填
+                twoPassword: [{ required: false, message: '二级密码不能为空', trigger: 'blur' }],
             },
             walletMapById: new Map(),
             walletMapByAddress: new Map(),
 
-            // --- 【新增】系统调账对话框相关状态 ---
             adjustmentDialog: {
                 visible: false,
                 title: '',
-                type: 'deposit', // 'deposit' or 'deduct'
-                targetUserUid: '', // 用于在对话框中显示目标用户
-                formModel: {
-                    userId: null,
-                    amount: undefined,
-                    remark: ''
-                },
+                type: 'deposit',
+                targetUserUid: '',
+                formModel: { userId: null, amount: undefined, remark: '' },
                 formRules: {
-                    amount: [
-                        { required: true, message: '金额不能为空', trigger: 'blur' },
-                        { type: 'number', min: 0.01, message: '金额必须是大于0的数字', trigger: 'blur' }
-                    ],
-                    remark: [
-                        { required: true, message: '操作备注不能为空', trigger: 'blur' }
-                    ]
+                    amount: [{ required: true, message: '金额不能为空', trigger: 'blur' }, { type: 'number', min: 0.01, message: '金额必须是大于0的数字', trigger: 'blur' }],
+                    remark: [{ required: true, message: '操作备注不能为空', trigger: 'blur' }]
                 }
             }
         };
     },
     computed: {
         formFields() {
-            const fields = this.tableColumns
-                .filter(col => !EXCLUDED_FORM_FIELDS.includes(col.prop))
-                .map(col => ({ prop: col.prop, label: col.label }));
-
-            const uidIndex = fields.findIndex(f => f.prop === 'uid');
-            if (uidIndex !== -1) {
-                fields.splice(uidIndex + 1, 0, {
-                    prop: 'walletAddress',
-                    label: '钱包地址'
-                });
-            } else {
-                fields.push({ prop: 'walletAddress', label: '钱包地址' });
-            }
-            
-            return fields;
+            return [
+                // { prop: 'uid', label: '用户UID' },
+                { prop: 'userWalletAddress', label: '钱包地址' },
+                // { prop: 'balance', label: '余额' },
+                { prop: 'invitationCodeId', label: '邀请码' },
+                { prop: 'upInvitationCode', label: '上级邀请码' },
+                { prop: 'resignCount', label: '补签次数' },
+                { prop: 'twoPassword', label: '二级密码' },
+            ];
         }
     },
     methods: {
-        // --- 数据加载与处理 ---
         async fetchAllData() {
             this.loading = true;
             try {
-                const [wallets, users] = await Promise.all([
-                    getRows(this.walletTableName),
-                    getRows(this.tableName)
+                const [userRes, walletRes] = await Promise.all([
+                    listUsersByAdmin(1, 99999),
+                    listWallets({ current: 1, size: -1 })
                 ]);
+
+                const users = userRes.data?.records || [];
+                const wallets = walletRes.data?.records || [];
 
                 this.walletMapById.clear();
                 this.walletMapByAddress.clear();
-                if (Array.isArray(wallets)) {
-                    wallets.forEach(wallet => {
-                        this.walletMapById.set(wallet.id, wallet.userWalletAddress);
-                        this.walletMapByAddress.set(wallet.userWalletAddress, wallet);
-                    });
+                wallets.forEach(wallet => {
+                    this.walletMapById.set(wallet.id, wallet);
+                    this.walletMapByAddress.set(wallet.userWalletAddress, wallet);
+                });
+
+                if (users.length === 0) {
+                    this.tableData = [];
+                    this.loading = false;
+                    return;
                 }
                 
-                if (Array.isArray(users) && users.length > 0) {
-                    const additionalDataPromises = users.map(user => 
-                        Promise.all([
-                            getUserBalance(user.id),
-                            getUserStatsByAdmin(user.id) // 新增的API调用
-                        ])
-                    );
-                    
-                    // 步骤 4: 等待所有用户的附加数据请求完成
-                    const additionalDataResults = await Promise.all(additionalDataPromises);
-                    
-                    // 步骤 5: 将基础用户数据与获取到的附加数据合并
-                    const usersWithFullData = users.map((user, index) => {
-                        const [balanceResult, statsResult] = additionalDataResults[index];
-                        return {
-                            ...user,
-                            balance: balanceResult.data, // 余额数据
-                            ...(statsResult.data || {}) // 将统计数据对象的属性展开合并到用户对象中
-                        };
-                    });
-                    
-                    this.tableData = usersWithFullData;
-                    if (this.tableColumns.length === 0) {
-                        const keys = Object.keys(usersWithFullData[0]);
-                        this.tableColumns = keys.map(key => ({
-                            prop: key,
-                            label: COLUMN_LABEL_MAP[key] || key // 如果映射中没有，则直接使用key作为label
-                        }));
-                    }
-                } else {
-                    this.tableData = [];
+                const additionalDataPromises = users.map(user =>
+                    Promise.all([
+                        getUserBalance(user.id),
+                        getUserStatsByAdmin(user.id)
+                    ])
+                );
+                const additionalDataResults = await Promise.all(additionalDataPromises);
+                
+                const allStatKeys = new Set();
+
+                const usersWithFullData = users.map((user, index) => {
+                    const [balanceResult, statsResult] = additionalDataResults[index];
+                    const walletInfo = this.walletMapById.get(user.walletAddressId);
+                    const statsData = statsResult.data || {};
+
+                    Object.keys(statsData).forEach(key => allStatKeys.add(key));
+
+                    return {
+                        ...user,
+                        userWalletAddress: walletInfo ? walletInfo.userWalletAddress : `(ID: ${user.walletAddressId} - 未找到)`,
+                        balance: balanceResult.data,
+                        ...statsData
+                    };
+                });
+                
+                this.tableData = usersWithFullData;
+
+                if (!this.initialColumnsSet && usersWithFullData.length > 0) {
+                    const baseColumns = [
+                        'id', 'balance', 'userWalletAddress', 'invitationCodeId', 
+                        'upInvitationCode', 'resignCount', 'registrationTime'
+                    ].map(key => ({
+                        prop: key,
+                        label: COLUMN_LABEL_MAP[key] || key
+                    }));
+
+                    const statColumns = Array.from(allStatKeys).map(key => ({
+                        prop: key,
+                        label: key 
+                    }));
+
+                    this.tableColumns = [...baseColumns, ...statColumns];
+                    this.initialColumnsSet = true;
                 }
 
             } catch (e) {
@@ -229,35 +232,128 @@ export default {
             }
         },
 
-        getWalletAddressById(id) {
-            return this.walletMapById.get(id) || `(ID: ${id})`;
-        },
-
-        // --- CRUD 操作 ---
         handleCreate() {
             const uniqueSeed = Date.now().toString() + Math.random().toString();
             const generatedUid = md5(uniqueSeed);
-
-            this.formModel = {
+            this.formModel = { 
                 uid: generatedUid,
-                walletAddress: ''
+                userWalletAddress: '',
+                balance: 0,
+                invitationCodeId: '',
+                upInvitationCode: '',
+                resignCount: 0,
+                twoPassword: ''
             };
-
+            this.originalWalletAddress = ''; 
             this.dialogTitle = '新增用户';
             this.dialogVisible = true;
         },
 
         handleEdit(row) {
-            this.formModel = { 
-                ...row,
-                walletAddress: this.getWalletAddressById(row.walletAddressId)
-            };
-            this.formModel.twoPassword = '';
-            
+            this.formModel = { ...row };
+            this.formModel.twoPassword = ''; // 编辑时清空密码框，留空代表不修改
+            this.originalWalletAddress = row.userWalletAddress || '';
             this.dialogTitle = '编辑用户';
             this.dialogVisible = true;
         },
+        
+        // [修改] 重构 submitForm 方法以支持独立的密码更新
+        async submitForm() {
+            const isEditMode = !!this.formModel.id;
 
+            // [修改] 动态设置密码验证规则
+            // 新增用户时，二级密码为必填项
+            // 编辑用户时，二级密码为选填项（留空表示不修改）
+            this.formRules.twoPassword[0].required = !isEditMode;
+            
+            const valid = await this.$refs.userForm.validate();
+            if (!valid) return;
+
+            try {
+                const userPayload = { ...this.formModel };
+                const newAddress = userPayload.userWalletAddress?.trim();
+                let newHashedPassword = null;
+
+                // [新增] 单独处理二级密码
+                if (userPayload.twoPassword) {
+                    newHashedPassword = userPayload.twoPassword;
+                }
+                // [修改] 从主提交对象中删除密码字段，因为它由专门的接口处理
+                delete userPayload.twoPassword;
+
+
+                // --- 钱包地址处理逻辑 (保持不变) ---
+                if (isEditMode) {
+                    const addressChanged = newAddress !== this.originalWalletAddress;
+                    if (addressChanged) {
+                        const existingWallet = this.walletMapByAddress.get(newAddress);
+                        if (existingWallet) {
+                           ElMessage.error('该钱包地址已被其他用户占用！');
+                           return;
+                        }
+                        ElMessage.info('正在更新钱包地址...');
+                        const currentWallet = this.walletMapById.get(userPayload.walletAddressId);
+                        if (currentWallet) {
+                            await updateWallet({ id: currentWallet.id, userWalletAddress: newAddress });
+                            ElMessage.success('钱包地址更新成功！');
+                        } else {
+                            ElMessage.error('未找到关联钱包，无法更新地址。');
+                            return;
+                        }
+                    }
+                } else {
+                    const existingWallet = this.walletMapByAddress.get(newAddress);
+                    if (existingWallet) {
+                        ElMessage.error('该钱包地址已存在！');
+                        return;
+                    }
+                    ElMessage.info('正在创建新钱包...');
+                    const newWalletData = {
+                        uuid: md5(Date.now().toString() + Math.random()),
+                        keyField: Math.random().toString(36).substring(2, 12),
+                        userWalletAddress: newAddress,
+                        uid: userPayload.uid
+                    };
+                    const walletRes = await addWallet(newWalletData);
+                    userPayload.walletAddressId = walletRes.data.id;
+                    ElMessage.success('新钱包创建成功！');
+                }
+
+                // --- 清理 userPayload (保持不变) ---
+                delete userPayload.userWalletAddress;
+                this.tableColumns.forEach(col => {
+                    if (!COLUMN_LABEL_MAP[col.prop]) {
+                       delete userPayload[col.prop];
+                    }
+                });
+
+                // --- 主信息提交 ---
+                if (isEditMode) {
+                    await updateUserByAdmin(userPayload);
+                    ElMessage.success('用户信息更新成功！');
+
+                    // [新增] 如果用户信息更新成功，并且有新密码，则调用密码更新接口
+                    if (newHashedPassword) {
+                        await updateUserPasswordByAdmin({
+                            userId: userPayload.id,
+                            twoPassword: newHashedPassword
+                        });
+                        ElMessage.success('二级密码更新成功！');
+                    }
+                } else {
+                    // 新增用户时，密码已在 payload 中处理
+                    userPayload.twoPassword = newHashedPassword; // 把加密后的密码加回去
+                    await addUserByAdmin(userPayload);
+                    ElMessage.success('新增用户成功！');
+                }
+                
+                this.dialogVisible = false;
+                await this.fetchAllData();
+            } catch (e) {
+                ElMessage.error(e.message || '操作失败');
+            }
+        },
+        
         async handleDelete(row) {
             try {
                 await ElMessageBox.confirm(`确定要删除用户 (UID: ${row.uid}) 吗？`, '警告', {
@@ -265,7 +361,7 @@ export default {
                     cancelButtonText: '取消',
                     type: 'warning',
                 });
-                await deleteRow(this.tableName, row.id);
+                await deleteUserByAdmin(row.id);
                 ElMessage.success('删除成功！');
                 this.fetchAllData();
             } catch (error) {
@@ -275,24 +371,13 @@ export default {
             }
         },
 
-        // --- 【新增】系统调账方法 ---
         handleAdjustment(type, row) {
-            // 重置表单
-            this.adjustmentDialog.formModel = {
-                userId: row.id, // API需要的是userId
-                amount: undefined,
-                remark: ''
-            };
-            // 设置对话框类型和标题
+            this.adjustmentDialog.formModel = { userId: row.id, amount: undefined, remark: '' };
             this.adjustmentDialog.type = type;
             this.adjustmentDialog.title = type === 'deposit' ? '系统充值' : '系统扣款';
             this.adjustmentDialog.targetUserUid = row.uid;
-            // 显示对话框
             this.adjustmentDialog.visible = true;
-
-            this.$nextTick(() => {
-                this.$refs.adjustmentForm.clearValidate();
-            });
+            this.$nextTick(() => { this.$refs.adjustmentForm?.clearValidate(); });
         },
         
         cancelAdjustmentForm() {
@@ -302,89 +387,25 @@ export default {
         async submitAdjustmentForm() {
             try {
                 const valid = await this.$refs.adjustmentForm.validate();
-                if (!valid) {
-                    return;
-                }
-
+                if (!valid) return;
                 const actionText = this.adjustmentDialog.type === 'deposit' ? '充值' : '扣款';
                 const apiToCall = this.adjustmentDialog.type === 'deposit' ? systemDeposit : systemDeduct;
-
                 await apiToCall(this.adjustmentDialog.formModel);
-                
                 ElMessage.success(`${actionText}操作成功！`);
                 this.cancelAdjustmentForm();
-                await this.fetchAllData(); // 操作成功后刷新列表数据
-
+                await this.fetchAllData();
             } catch (e) {
                 ElMessage.error(e.message || '操作失败');
             }
         },
 
-        // --- 表单相关 ---
         cancelForm() {
             this.dialogVisible = false;
         },
         
         resetForm() {
-             this.$nextTick(() => {
-                if (this.$refs.userForm) {
-                    this.$refs.userForm.clearValidate();
-                }
-            });
+             this.$nextTick(() => { this.$refs.userForm?.clearValidate(); });
         },
-
-        async submitForm() {
-            const isEditMode = !!this.formModel.id;
-            this.formRules.twoPassword = (isEditMode && !this.formModel.twoPassword)
-                ? [] 
-                : [{ required: true, message: '二级密码不能为空', trigger: 'blur' }];
-
-            const valid = await this.$refs.userForm.validate();
-            if (!valid) {
-                return;
-            }
-
-            try {
-                const payload = { ...this.formModel };
-                const address = payload.walletAddress;
-                let walletId = null;
-
-                if (this.walletMapByAddress.has(address)) {
-                    walletId = this.walletMapByAddress.get(address).id;
-                } else {
-                    ElMessage.info('检测到新的钱包地址，正在为您创建...');
-                    const newWalletData = {
-                        uuid: md5(Date.now().toString()),
-                        keyField: Math.random().toString(36).substring(2, 12),
-                        userWalletAddress: address,
-                        uid: payload.uid
-                    };
-                    const createdWallet = await createRow(this.walletTableName, newWalletData);
-                    walletId = createdWallet.id;
-                    ElMessage.success('新钱包创建成功！');
-                }
-                payload.walletAddressId = walletId;
-                delete payload.walletAddress;
-                
-                if (payload.twoPassword) {
-                    payload.twoPassword = md5(payload.twoPassword);
-                } else {
-                    delete payload.twoPassword;
-                }
-
-                if (payload.id) {
-                    await updateRow(this.tableName, payload.id, payload);
-                    ElMessage.success('更新成功！');
-                } else {
-                    await createRow(this.tableName, payload);
-                    ElMessage.success('新增成功！');
-                }
-                this.dialogVisible = false;
-                await this.fetchAllData();
-            } catch (e) {
-                ElMessage.error(e.message || '操作失败');
-            }
-        }
     },
     mounted() {
         this.fetchAllData();

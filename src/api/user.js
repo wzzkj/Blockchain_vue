@@ -6,7 +6,7 @@
 import http from './http' // 假设 http 模块在同级目录下
 
 // 沿用之前的请求头配置
-const HDRS = { headers: { 'Account-test': 'application/q1s7j3z0e8' } }
+import { HDRS } from './apiConfig';
 
 // --- 管理员对用户的 CRUD 操作 ---
 
@@ -21,6 +21,18 @@ export async function deleteUserByAdmin(userId) {
   const response = await http.post('/api/user/admin/delete', { id: userId }, HDRS);
   return response.data;
 }
+
+/**
+ * (管理员) 新增用户
+ * @param {object} userData - 新用户的数据，应符合后端 User 实体类的结构
+ * @returns {Promise<Result2<User>>} 返回操作结果及创建后的用户信息
+ * @see POST /api/user/admin/add
+ */
+export async function addUserByAdmin(userData) {
+  const response = await http.post('/api/user/admin/add', userData, HDRS);
+  return response.data;
+}
+
 
 /**
  * (管理员) 更新用户信息
@@ -54,15 +66,16 @@ export async function listUsersByAdmin(current, size) {
 
 /**
  * (管理员) 修改指定用户的二级密码
+ * private String twoPassword;
+    private String userId;
  * @param {object} passwordData - 包含用户ID和新密码的对象
  * @param {number | string} passwordData.userId - 目标用户的ID
- * @param {string} passwordData.newPassword - 新的二级密码
+ * @param {string} passwordData.twoPassword - 新的二级密码
  * @returns {Promise<Result2<string>>} 返回操作结果
  * @see POST /api/user/admin/update/paswad
- * @description 注意：后端代码实现可能存在歧义，它调用了`userService.updateTwoPasswordByUserId(StpUtil.getLoginIdAsLong(), u)`，这通常是修改当前登录者（即管理员自己）的密码。此处前端实现假定其意图是修改指定用户的密码，因此`UpdateTwoPasswordDto`中应包含`userId`字段。
  */
 export async function updateUserPasswordByAdmin(passwordData) {
-   if (!passwordData || !passwordData.userId || !passwordData.newPassword) {
+   if (!passwordData || !passwordData.userId || !passwordData.twoPassword) {
     return Promise.reject(new Error("必须提供用户ID和新密码"));
   }
   const response = await http.post('/api/user/admin/update/paswad', passwordData, HDRS);

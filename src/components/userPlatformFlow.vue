@@ -82,7 +82,21 @@
             </el-table-column>
         </el-table>
 
+        <!-- 新增：分页组件 -->
+        <div class="pagination-container" style="margin-top: 18px; display: flex; justify-content: flex-end;">
+            <el-pagination
+                v-model:current-page="pagination.currentPage"
+                v-model:page-size="pagination.pageSize"
+                :page-sizes="[10, 20, 50, 100]"
+                layout="total, sizes, prev, pager, next, jumper"
+                :total="pagination.total"
+                @size-change="handleSizeChange"
+                @current-change="handleCurrentChange"
+            />
+        </div>
+
     </div>
+    
 </template>
 
 <script>
@@ -114,6 +128,11 @@ export default {
             loading: false,
             tableData: [],
             tableColumns: [],
+            pagination: {
+                currentPage: 1,
+                pageSize: 10,
+                total: 0,
+            },
             // 搜索表单的数据模型
             searchForm: {
                 userId: '',
@@ -146,7 +165,7 @@ export default {
         async loadData() {
             this.loading = true;
             try {
-                // 处理时间范围
+                // 处理时间范围 (逻辑不变)
                 if (this.searchForm.timeRange && this.searchForm.timeRange.length === 2) {
                     this.searchForm.startTime = this.searchForm.timeRange[0];
                     this.searchForm.endTime = this.searchForm.timeRange[1];
@@ -155,31 +174,36 @@ export default {
                     this.searchForm.endTime = '';
                 }
                 
-                // 剔除不需要传给后端的 timeRange 字段
-                const { timeRange, ...queryDTO } = this.searchForm;
+                const { timeRange, ...searchParams } = this.searchForm;
+
+                // 组合查询参数和分页参数
+                const queryDTO = {
+                    ...searchParams,
+                    pageNum: this.pagination.currentPage,
+                    pageSize: this.pagination.pageSize,
+                };
 
                 const response = await searchUserPlatformFlow(queryDTO);
 
-                // 假设后端返回的数据在 response.data 中
-                const list = response.data;
+                // 解析后端返回的分页数据
+                const pageResult = response.data;
+                if (pageResult && Array.isArray(pageResult.records)) {
+                    this.tableData = pageResult.records;
+                    this.pagination.total = pageResult.total; // 更新总条数
 
-                if (Array.isArray(list) && list.length > 0) {
-                    this.tableData = list;
-                    // 如果是首次加载，则动态生成列定义
-                    if (this.tableColumns.length === 0) {
-                        const keys = Object.keys(list[0]);
+                    // 动态生成列定义 (逻辑不变)
+                    if (this.tableColumns.length === 0 && pageResult.records.length > 0) {
+                        const keys = Object.keys(pageResult.records[0]);
                         this.tableColumns = keys.map(key => ({
                             prop: key,
-                            label: COLUMN_LABEL_MAP[key] || key // 使用映射，找不到则用原名
+                            label: COLUMN_LABEL_MAP[key] || key
                         }));
                     }
                 } else {
                     this.tableData = [];
-                    // 如果没有数据，但列还未生成，可以提示用户
-                    if(this.tableColumns.length === 0) {
-                        ElMessage.warning('暂无数据，无法生成表头');
-                    }
+                    this.pagination.total = 0; // 清空数据时重置总数
                 }
+
             } catch (e) {
                 ElMessage.error(e.message || '数据加载失败');
             } finally {
@@ -187,19 +211,32 @@ export default {
             }
         },
 
-        // 执行搜索
+        // 执行搜索 (修改)
         handleSearch() {
+            // 每次执行新搜索时，都应该回到第一页
+            this.pagination.currentPage = 1;
             this.loadData();
         },
 
-        // 重置搜索条件
+        // 重置搜索条件 (修改)
         resetSearch() {
-            // 使用 el-form 的 resetFields 方法可以清空表单并移除校验状态
             this.$refs.searchFormRef.resetFields();
-            // 重置时间范围后，需要手动清理 startTime 和 endTime
             this.searchForm.startTime = '';
             this.searchForm.endTime = '';
-            // 重新加载数据
+            // 重置搜索同样回到第一页
+            this.pagination.currentPage = 1;
+            this.loadData();
+        },
+
+        // 新增：处理每页显示数量变化
+        handleSizeChange(newPageSize) {
+            this.pagination.pageSize = newPageSize;
+            this.loadData();
+        },
+
+        // 新增：处理当前页码变化
+        handleCurrentChange(newPage) {
+            this.pagination.currentPage = newPage;
             this.loadData();
         }
     },

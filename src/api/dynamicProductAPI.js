@@ -1,7 +1,7 @@
 import http from './http'
 
 // 假设沿用之前的请求头配置
-const HDRS = { headers: { 'Account-test': 'application/q1s7j3z0e8' } }
+import { HDRS } from './apiConfig';
 
 /**
  * 添加动态理财产品

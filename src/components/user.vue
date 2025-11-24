@@ -104,7 +104,7 @@ const COLUMN_LABEL_MAP = {
     upInvitationCode: '上级邀请码',
     resignCount: '补签次数',
     registrationTime: '注册时间',
-    updateTime: '更新时间'
+    updateTime:'更新时间',
 };
 
 export default {
@@ -210,7 +210,7 @@ export default {
                 if (!this.initialColumnsSet && usersWithFullData.length > 0) {
                     const baseColumns = [
                         'id', 'balance', 'userWalletAddress', 'invitationCodeId', 
-                        'upInvitationCode', 'resignCount', 'registrationTime'
+                        'upInvitationCode', 'resignCount','updateTime', 'registrationTime'
                     ].map(key => ({
                         prop: key,
                         label: COLUMN_LABEL_MAP[key] || key

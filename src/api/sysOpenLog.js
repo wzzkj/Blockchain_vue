@@ -95,3 +95,63 @@ export async function getSysOpenLogAnalysis(params = {}) {
   const response = await http.post('/api/admin/sys-open-log/analysis', params, HDRS);
   return response.data?.data || {};
 }
+
+
+/**
+ * ===========================================================================
+ * 异常流量分析 API
+ * ===========================================================================
+ */
+
+/**
+ * 获取异常流量分析报告
+ * 支持自定义阈值参数，不传则使用后端默认值
+ * 对应后端: POST /api/admin/analysis/abnormal (请确认Controller类的@RequestMapping前缀)
+ * 
+ * @param {object} [config] - 流量分析配置参数 (TrafficAnalysisConfigDTO)
+ * @param {number} [config.days] - 查询天数 (1-7), 默认: 1
+ * @param {number} [config.slowThresholdMs] - 慢请求阈值(ms), 默认: 1000
+ * @param {number} [config.qpsThreshold] - 瞬时QPS峰值阈值, 默认: 5
+ * @param {number} [config.loginThreshold] - 登录接口请求频次阈值(疑似爆破), 默认: 10
+ * @param {number} [config.highFreqThreshold] - 单人总请求数阈值(疑似爬虫), 默认: 10000
+ * @param {number} [config.errorRateThreshold] - 错误率阈值(0.0-1.0), 默认: 0.3
+ * @param {number} [config.slowCountThreshold] - 慢请求数量阈值, 默认: 5
+ * @param {number} [config.minRequestForErrorRate] - 计算错误率的最小请求基数, 默认: 10
+ * 
+ * @returns {Promise<object>} 返回 AbnormalAnalysisResultVO 结构
+ * 
+ * 返回结构详解:
+ * {
+ *   totalRequestCount: number,   // 总请求数
+ *   errorRequestCount: number,   // 错误请求数
+ *   slowRequestCount: number,    // 慢请求数
+ * 
+ *   // 最近的异常/慢日志列表 (用于展示最新动态)
+ *   recentErrorLogs: [
+ *     { id: string, uri: string, method: string, ip: string, requestTime: string, status: number, ... }
+ *   ],
+ *   recentSlowLogs: [
+ *     { id: string, uri: string, costTime: number, requestTime: string, ... }
+ *   ],
+ * 
+ *   // 风险用户列表 (重点关注)
+ *   riskUsers: [
+ *     {
+ *       userWalletAddress: string, // 钱包地址 (主要ID)
+ *       username: string,          // 用户名
+ *       ip: string,                // 来源IP
+ *       totalCount: number,        // 总请求次数
+ *       errorCount: number,        // 错误次数
+ *       slowCount: number,         // 慢请求次数
+ *       // 风险类型标签，例如: ["PASSWORD_BRUTE_FORCE", "HIGH_QPS_BURST", "HIGH_ERROR_RATE"]
+ *       //标签详情： 密码爆破 PASSWORD_BRUTE_FORCE、高QPS突发 HIGH_QPS_BURST、高错误率 HIGH_ERROR_RATE、疑似爬虫 SUSPECTED_SPIDER、慢请求 SLOW_REQUEST
+ *       riskTypes: string[]
+ *     },
+ *     ...
+ *   ]
+ * }
+ */
+export async function getAbnormalTrafficAnalysis(config = {}) {
+  const response = await http.post('/api/admin/analysis/abnormal', config, HDRS);
+  return response.data?.data || {};
+}

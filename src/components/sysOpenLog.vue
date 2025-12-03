@@ -12,6 +12,9 @@
                     <el-button type="primary" :icon="Search" @click="fetchAnalysisData" :loading="loading">
                         查询
                     </el-button>
+                    <el-button type="danger" :icon="Warning" @click="handleAbnormalAnalysis">
+                        异常流量分析
+                    </el-button>
                 </div>
             </div>
         </el-card>
@@ -151,28 +154,12 @@
 
                                         <!-- 具体时间点 Tag 列表 -->
                                         <!-- 具体时间点 Tag 列表 (带 IP 提示) -->
-                                        <div class="api-times">
-                                            <!-- 1. 改为 (t, index) 获取索引，以便去 ips 数组里取值 -->
-                                            <el-tooltip v-for="(t, index) in api.requestTimes" :key="index"
-                                                effect="dark" placement="top">
-                                                <!-- 2. Tooltip 内容：显示完整时间和对应的 IP -->
-                                                <template #content>
-                                                    <div style="text-align: center">
-                                                        <div><b style="color: #fff">IP:</b> {{ api.ips && api.ips[index]
-                                                            ? api.ips[index] : '未记录' }}</div>
-                                                        <div style="font-size: 12px; margin-top: 4px; color: #ccc">时间:
-                                                            {{ t }}</div>
-                                                    </div>
-                                                </template>
-
-                                                <!-- 3. Tag 本体：保持简洁，只显示时分秒 -->
-                                                <el-tag size="small" type="info" class="time-tag cursor-pointer">
-                                                    {{ t.split(' ')[1] }}
-                                                    <!-- 如果你一定要在标签里直接显示 IP，取消下面这行的注释即可 -->
-                                                    <!-- <span class="ml-1 text-xs text-gray-400">({{ api.ips?.[index] }})</span> -->
-                                                </el-tag>
-                                            </el-tooltip>
-                                        </div>
+                                        <div class="api-chart-container">
+    <IpScatterChart 
+        :times="api.requestTimes" 
+        :ips="api.ips" 
+    />
+</div>
                                     </div>
                                 </div>
                             </el-collapse-item>
@@ -185,16 +172,106 @@
             </el-collapse>
         </el-card>
     </div>
+    <!-- 新增：异常流量分析弹窗 -->
+        <el-dialog v-model="abnormalVisible" title="异常流量分析报告" width="80%" destroy-on-close>
+            <div v-loading="abnormalLoading" class="abnormal-container">
+                
+                <!-- 1. 概览数据 -->
+                <el-row :gutter="20" class="mb-4">
+                    <el-col :span="8">
+                        <div class="abnormal-metric-box bg-blue">
+                            <div class="label">总检测请求数</div>
+                            <div class="val">{{ abnormalData.totalRequestCount || 0 }}</div>
+                        </div>
+                    </el-col>
+                    <el-col :span="8">
+                        <div class="abnormal-metric-box bg-red">
+                            <div class="label">检测到错误请求</div>
+                            <div class="val">{{ abnormalData.errorRequestCount || 0 }}</div>
+                        </div>
+                    </el-col>
+                    <el-col :span="8">
+                        <div class="abnormal-metric-box bg-orange">
+                            <div class="label">检测到慢请求</div>
+                            <div class="val">{{ abnormalData.slowRequestCount || 0 }}</div>
+                        </div>
+                    </el-col>
+                </el-row>
+
+                <!-- 2. 风险用户列表 (重点) -->
+                <h3 class="section-title">
+                    <el-icon class="mr-1"><WarnTriangleFilled /></el-icon> 风险用户/IP 预警
+                </h3>
+                <el-table :data="abnormalData.riskUsers" border stripe style="width: 100%" class="mb-4">
+                    <el-table-column prop="username" label="用户名" width="120" />
+                    <el-table-column prop="userWalletAddress" label="钱包地址/ID" show-overflow-tooltip min-width="150" />
+                    <el-table-column prop="ip" label="来源IP" width="140" />
+                    <el-table-column label="风险特征 (标签)" min-width="250">
+                        <template #default="scope">
+                            <div class="risk-tags">
+                                <el-tag 
+                                    v-for="tag in scope.row.riskTypes" 
+                                    :key="tag" 
+                                    type="danger" 
+                                    effect="dark"
+                                    class="mr-1 mb-1"
+                                >
+                                    {{ riskTypeMap[tag] || tag }}
+                                </el-tag>
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="totalCount" label="总请求" width="100" align="center" sortable />
+                    <el-table-column prop="errorCount" label="错误数" width="100" align="center" sortable />
+                    <el-table-column prop="slowCount" label="慢请求" width="100" align="center" sortable />
+                </el-table>
+
+                <!-- 3. 详细日志 Tabs -->
+                <el-tabs type="border-card">
+                    <el-tab-pane label="最近错误日志">
+                        <el-table :data="abnormalData.recentErrorLogs" height="300" style="width: 100%">
+                            <el-table-column prop="requestTime" label="时间" width="160" />
+                            <el-table-column prop="ip" label="IP" width="130" />
+                            <el-table-column prop="method" label="Method" width="80" />
+                            <el-table-column prop="uri" label="接口地址" show-overflow-tooltip />
+                            <el-table-column prop="status" label="状态码" width="80">
+                                <template #default="{ row }">
+                                    <el-tag type="danger">{{ row.status }}</el-tag>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </el-tab-pane>
+                    <el-tab-pane label="最近慢请求日志">
+                        <el-table :data="abnormalData.recentSlowLogs" height="300" style="width: 100%">
+                            <el-table-column prop="requestTime" label="时间" width="160" />
+                            <el-table-column prop="uri" label="接口地址" show-overflow-tooltip />
+                            <el-table-column prop="costTime" label="耗时 (ms)" width="120" sortable>
+                                <template #default="{ row }">
+                                    <span class="text-warning font-bold">{{ row.costTime }}</span>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </el-tab-pane>
+                </el-tabs>
+
+            </div>
+            <template #footer>
+                <div class="dialog-footer">
+                    <el-button @click="abnormalVisible = false">关 闭</el-button>
+                </div>
+            </template>
+        </el-dialog>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted, computed, nextTick, watch } from 'vue';
-import { Search } from '@element-plus/icons-vue';
+import { Search, User, Wallet, Warning, WarnTriangleFilled } from '@element-plus/icons-vue';
 import * as echarts from 'echarts';
 import { ElMessage } from 'element-plus';
+import IpScatterChart from './IpScatterChart.vue'
 
 // 引入你的API文件
-import { getSysOpenLogAnalysis } from '../api/sysOpenLog'; // 请根据实际路径修改
+import { getSysOpenLogAnalysis, getAbnormalTrafficAnalysis } from '../api/sysOpenLog'; // 请根据实际路径修改
 
 // --- 状态定义 ---
 const loading = ref(false);
@@ -228,6 +305,30 @@ const analysisData = reactive({
     hourlyDetails: []
 });
 
+// --- 异常分析相关状态 ---
+const abnormalVisible = ref(false);
+const abnormalLoading = ref(false);
+const abnormalData = reactive({
+    totalRequestCount: 0,
+    errorRequestCount: 0,
+    slowRequestCount: 0,
+    riskUsers: [],
+    recentErrorLogs: [],
+    recentSlowLogs: []
+});
+
+
+// --- 风险标签字典映射 ---
+const riskTypeMap = {
+    'PASSWORD_BRUTE_FORCE': '密码爆破攻击',
+    'HIGH_QPS_BURST': '高QPS瞬时突发',
+    'HIGH_ERROR_RATE': '高错误率异常',
+    'SUSPECTED_SPIDER': '疑似爬虫行为',
+    'SLOW_REQUEST': '慢请求过多',
+    'LOGIN_FAIL': '登录失败过多',
+    'DISTRIBUTED_ATTACK_OR_PROXY': '分布式攻击或代理访问'
+};
+
 // Chart DOM 引用
 const trendChartRef = ref(null);
 const perfChartRef = ref(null);
@@ -245,6 +346,61 @@ const topUsersList = computed(() => {
 });
 
 // --- 方法 ---
+
+
+
+/**
+ * 触发异常流量分析
+ * 根据当前选择的日期范围计算天数，如果没选则默认 1 天
+ */
+const handleAbnormalAnalysis = async () => {
+    abnormalVisible.value = true;
+    abnormalLoading.value = true;
+    
+    try {
+        // 计算天数
+        let days = 1;
+        if (dateRange.value && dateRange.value.length === 2) {
+            const start = new Date(dateRange.value[0]).getTime();
+            const end = new Date(dateRange.value[1]).getTime();
+            const diff = end - start;
+            // 向上取整计算天数
+            days = Math.ceil(diff / (1000 * 3600 * 24));
+        }
+        
+        // 限制在 1-7 天内 (根据API文档描述)
+        if (days < 1) days = 1;
+        if (days > 7) days = 7;
+
+        const config = {
+            days: days,
+            // 可以在此添加其他阈值参数，如:
+            // slowThresholdMs: 1000,
+            // qpsThreshold: 10
+        };
+
+        const res = await getAbnormalTrafficAnalysis(config);
+        
+        // 清空旧数据并赋值新数据
+        Object.assign(abnormalData, {
+            totalRequestCount: 0,
+            errorRequestCount: 0,
+            slowRequestCount: 0,
+            riskUsers: [],
+            recentErrorLogs: [],
+            recentSlowLogs: []
+        }); // reset
+        Object.assign(abnormalData, res);
+
+    } catch (error) {
+        console.error(error);
+        ElMessage.error('获取异常分析报告失败');
+    } finally {
+        abnormalLoading.value = false;
+    }
+};
+
+
 
 /**
  * 获取数据
@@ -687,5 +843,39 @@ onMounted(() => {
 .time-tag {
   margin-right: 6px; 
   margin-bottom: 6px;
+}
+/* --- 新增：异常分析弹窗样式 --- */
+.abnormal-container { padding: 0 10px; }
+.abnormal-metric-box {
+    border-radius: 8px;
+    padding: 20px;
+    /* color: #fff; */
+    /* text-align: center; */
+    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+}
+/* .abnormal-metric-box .label { font-size: 14px; opacity: 0.9; margin-bottom: 8px; }
+.abnormal-metric-box .val { font-size: 28px; font-weight: bold; } */
+
+/* .bg-blue { background: linear-gradient(135deg, #409EFF, #79bbff); }
+.bg-red { background: linear-gradient(135deg, #F56C6C, #f89898); }
+.bg-orange { background: linear-gradient(135deg, #E6A23C, #eebe77); } */
+
+.section-title {
+    margin: 20px 0 15px;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    color: #303133;
+    border-left: 4px solid #F56C6C;
+    padding-left: 10px;
+}
+.risk-tags { display: flex; flex-wrap: wrap; }
+.font-bold { font-weight: bold; }
+.api-chart-container {
+    margin-top: 10px;
+    border: 1px solid #ebeef5;
+    border-radius: 4px;
+    background: #fff;
+    padding: 10px;
 }
 </style>
